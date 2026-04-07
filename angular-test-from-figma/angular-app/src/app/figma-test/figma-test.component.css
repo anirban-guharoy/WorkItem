@@ -1,0 +1,42 @@
+.figma-component {
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.figma-component h1 {
+  margin: 0 0 16px 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #333333;
+}
+
+.design-layout {
+  margin-top: 16px;
+}
+
+.design-layout p {
+  color: #666666;
+  margin-bottom: 12px;
+}
+
+.design-layout ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.design-layout li {
+  padding: 8px;
+  margin-bottom: 4px;
+  background: #f5f5f5;
+  border-left: 3px solid #0066cc;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.design-layout li strong {
+  color: #0066cc;
+}

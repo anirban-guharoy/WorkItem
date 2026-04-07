@@ -1,0 +1,16 @@
+{
+  "python.defaultInterpreterPath": "python3",
+  "python.linting.enabled": true,
+  "python.linting.pylintEnabled": true,
+  "python.formatting.provider": "black",
+  "python.formatting.blackArgs": ["--line-length", "88"],
+  "github.copilot.chat.mcp": {
+    "figma": {
+      "command": "python",
+      "args": ["${workspaceFolder}/main.py"],
+      "env": {
+        "FIGMA_API_TOKEN": "${env:FIGMA_API_TOKEN}"
+      }
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Start MCP Server",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "console": "integratedTerminal",
+      "env": {
+        "FIGMA_API_TOKEN": "${env:FIGMA_API_TOKEN}"
+      }
+    },
+    {
+      "name": "Test Server",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/test_server.py",
+      "console": "integratedTerminal",
+      "env": {
+        "FIGMA_API_TOKEN": "${env:FIGMA_API_TOKEN}"
+      }
+    }
+  ]
+}

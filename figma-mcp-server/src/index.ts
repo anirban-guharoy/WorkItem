@@ -54,7 +54,7 @@ class FigmaServer {
       try {
         switch (request.params.name) {
           case "get_files":
-            return await this.getFiles();
+            return await this.getFiles(request.params.arguments);
           case "get_file":
             return await this.getFile(request.params.arguments);
           case "get_file_nodes":
@@ -90,10 +90,19 @@ class FigmaServer {
     return [
       {
         name: "get_files",
-        description: "List all Figma files accessible to the authenticated user",
+        description: "List Figma files from a project or team",
         inputSchema: {
           type: "object",
-          properties: {},
+          properties: {
+            project_id: {
+              type: "string",
+              description: "Optional Figma project ID to list files from",
+            },
+            team_id: {
+              type: "string",
+              description: "Optional Figma team ID to list project files from",
+            },
+          },
         },
       },
       {
@@ -151,7 +160,7 @@ class FigmaServer {
     ];
   }
 
-  private async getFiles() {
+  private async getFiles(args?: unknown) {
     if (!this.figmaApiToken) {
       return {
         content: [
@@ -164,26 +173,90 @@ class FigmaServer {
       };
     }
 
-    try {
-      const response = await fetch(`${this.figmaApiBaseUrl}/files`, {
-        headers: {
-          "X-Figma-Token": this.figmaApiToken,
-        },
-      });
+    const argsObj = (args as Record<string, unknown>) || {};
+    const projectId = argsObj.project_id as string;
+    const teamId = argsObj.team_id as string;
 
-      if (!response.ok) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Figma API error: ${response.status} ${response.statusText}`,
+    if (!projectId && !teamId) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: "Error: Figma requires a project_id or team_id to list files. Provide project_id to list files within a project, or team_id to list files for projects in a team.",
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    try {
+      let data: unknown;
+
+      if (projectId) {
+        const response = await fetch(`${this.figmaApiBaseUrl}/projects/${projectId}/files`, {
+          headers: {
+            "X-Figma-Token": this.figmaApiToken,
+          },
+        });
+
+        if (!response.ok) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Figma API error: ${response.status} ${response.statusText}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        data = await response.json();
+      } else {
+        const teamResponse = await fetch(`${this.figmaApiBaseUrl}/teams/${teamId}/projects`, {
+          headers: {
+            "X-Figma-Token": this.figmaApiToken,
+          },
+        });
+
+        if (!teamResponse.ok) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Figma API error: ${teamResponse.status} ${teamResponse.statusText}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const teamData = (await teamResponse.json()) as any;
+        const projectFiles: Array<Record<string, unknown>> = [];
+
+        for (const project of teamData.projects || []) {
+          if (!project.id) continue;
+          const projectResponse = await fetch(`${this.figmaApiBaseUrl}/projects/${project.id}/files`, {
+            headers: {
+              "X-Figma-Token": this.figmaApiToken,
             },
-          ],
-          isError: true,
-        };
+          });
+
+          if (!projectResponse.ok) {
+            continue;
+          }
+
+          const projectData = (await projectResponse.json()) as any;
+          projectFiles.push({
+            project: project.name,
+            project_id: project.id,
+            files: projectData.files,
+          });
+        }
+
+        data = projectFiles;
       }
 
-      const data = await response.json();
       return {
         content: [
           {

@@ -1,17 +1,18 @@
-# Figma MCP Server - Quick Setup Guide (Node.js Version)
-
-**Note:** This is the original Node.js/TypeScript implementation. For the Python version, see [../figma-mcp-server-python/](../figma-mcp-server-python/).
+# Figma MCP Server - Quick Setup Guide
 
 ## What is this?
 
-This is a Model Context Protocol (MCP) server that allows AI assistants (like Github Copilot) to interact with Figma designs programmatically. It provides tools to fetch files, design elements, components, and other design data from Figma.
+This is a Model Context Protocol (MCP) server that allows Github Copilot to interact with Figma designs programmatically. It provides tools to fetch files, design elements, components, and other design data from Figma.
 
 ## Prerequisites
 
-- Node.js 18 or higher
+- Python 3.10 or higher ⚠️ (Required for MCP SDK compatibility)
+- pip
 - A Figma account with API access
 - A Figma personal access token
 - VS Code with Github Copilot Chat extension
+
+> **Note:** The MCP Python SDK requires Python 3.10 or higher. If you're using an older version of Python, consider upgrading or using the Node.js version instead.
 
 ## Step 1: Get Your Figma API Token
 
@@ -23,7 +24,7 @@ This is a Model Context Protocol (MCP) server that allows AI assistants (like Gi
 ## Step 2: Install Dependencies
 
 ```bash
-npm install
+pip install -r requirements.txt
 ```
 
 ## Step 3: Configure Environment
@@ -40,28 +41,20 @@ Then edit `.env` and add your Figma token:
 FIGMA_API_TOKEN=your_actual_token_here
 ```
 
-## Step 4: Build the Project
-
-```bash
-npm run build
-```
-
-This compiles TypeScript to JavaScript in the `dist/` folder.
-
-## Step 5: Test the Server
+## Step 4: Test the Server
 
 To verify everything is working:
 
 ```bash
-npm start
+python test_server.py
 ```
 
 You should see output like:
 ```
-Figma MCP server running on stdio
+Server: Figma MCP server running on stdio
+✅ Server started successfully!
+✅ FIGMA_API_TOKEN is loaded
 ```
-
-(Press Ctrl+C to stop)
 
 ## Using with Github Copilot
 
@@ -77,8 +70,8 @@ To use this MCP server with Github Copilot in VS Code, you'll need to configure 
 {
   "github.copilot.chat.mcp": {
     "figma": {
-      "command": "node",
-      "args": ["${workspaceFolder}/dist/index.js"],
+      "command": "python",
+      "args": ["${workspaceFolder}/main.py"],
       "env": {
         "FIGMA_API_TOKEN": "your_token_here"
       }
@@ -95,8 +88,8 @@ Alternatively, you can configure it through the Copilot Chat interface:
 3. Go to "MCP Servers"
 4. Add a new server with the following details:
    - Name: `figma`
-   - Command: `node`
-   - Arguments: `${workspaceFolder}/dist/index.js`
+   - Command: `python`
+   - Arguments: `${workspaceFolder}/main.py`
    - Environment: `FIGMA_API_TOKEN=your_token_here`
 
 ## Available Tools
@@ -113,6 +106,11 @@ Lists Figma files from a project or team.
 ### 2. `get_file`
 Gets detailed information about a specific file.
 ```
+Arguments:
+  - file_key: The file ID from the Figma URL
+```
+
+### 3. `get_file_nodes`
 Retrieves specific design elements from a file.
 ```
 Arguments:
@@ -130,7 +128,7 @@ Arguments:
 
 ## Troubleshooting
 
-### "FIGMA_API_TOKEN is not set"
+### "FIGMA_API_TOKEN environment variable is not set"
 - Verify you created a `.env` file
 - Check that the token is correctly added
 - Restart the server
@@ -158,32 +156,31 @@ Can be found in Figma:
 1. Right-click a layer/component
 2. Copy the node ID from developer tools or API responses
 
-### Watch mode
-Automatically rebuild on changes:
-```bash
-npm run watch
-```
+## Development
 
-### Development with rebuilding
+### Running the server directly
 ```bash
-npm run dev
+python main.py
 ```
 
 ## Project Structure
 
 ```
 .
-├── src/
-│   └── index.ts           # Main MCP server implementation
-├── dist/                  # Compiled JavaScript output
-├── package.json           # Project dependencies
-├── tsconfig.json          # TypeScript configuration
+├── main.py                # Main MCP server implementation
+├── requirements.txt       # Python dependencies
+├── explore_figma.py       # Utility to explore Figma files
+├── find_poc_design.py     # Find POC designs
+├── generate_component.py  # Generate Angular components
+├── update_component_from_figma.py  # Update components from Figma
+├── test_server.py        # Test server functionality
+├── .env.example           # Environment template
 └── README.md              # Full documentation
 ```
 
 ## Next Steps
 
-1. ✅ Install and build
+1. ✅ Install dependencies
 2. ✅ Configure with your Figma token
 3. ✅ Test the server
 4. ✅ Configure in Github Copilot (VS Code)

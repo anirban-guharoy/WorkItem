@@ -1,41 +1,56 @@
-# Figma MCP Server (Node.js Version)
-
-**Note:** This is the original Node.js/TypeScript implementation. For the Python version, see [../figma-mcp-server-python/](../figma-mcp-server-python/).
+# Figma MCP Server
 
 A Model Context Protocol (MCP) server for integrating with Figma, enabling Github Copilot to access and interact with Figma files, components, and design elements.
 
+## Features
+
+- **List Files**: Retrieve all accessible Figma files
+- **Get File Details**: Access detailed file structure and metadata
+- **Query Nodes**: Fetch specific design elements (nodes) from files
+- **Component Access**: Retrieve component information and properties
+
 ## Prerequisites
 
-- Node.js 18+
-- npm
+- Python 3.10+ ⚠️ (Required for MCP SDK compatibility)
+- pip
 - Figma account with API token access
 - VS Code with Github Copilot Chat extension
 
+> **Note:** The MCP Python SDK requires Python 3.10 or higher. If you're using an older version of Python, consider upgrading or using the Node.js version instead.
+
 ## Installation
 
-1. Install dependencies:
-```bash
-npm install
-```
-
-2. Build the project:
-```bash
-npm run build
-```
-
-3. Set up environment variables (see SETUP.md)
-
-## Running
+1. Clone or extract this project
+2. Install dependencies:
 
 ```bash
-npm start
+pip install -r requirements.txt
 ```
 
-## Configuration
+3. Set up environment variables:
 
-Configure this MCP server in VS Code settings for use with Github Copilot Chat. See [SETUP.md](./SETUP.md) for detailed instructions.
+```bash
+cp .env.example .env
+```
 
-For full documentation, see SETUP.md.
+4. Add your Figma API token to `.env`:
+
+```env
+FIGMA_API_TOKEN=your_figma_api_token_here
+```
+
+**Getting a Figma API Token:**
+1. Go to [Figma Settings - API](https://www.figma.com/developers/api#access-tokens)
+2. Create a new personal access token
+3. Copy the token and paste it in your `.env` file
+
+## Running the Server
+
+Start the server:
+
+```bash
+python main.py
+```
 
 ## API Tools
 
@@ -48,6 +63,38 @@ Tool: get_files
 Arguments:
   - project_id: Optional Figma project ID to list files from
   - team_id: Optional Figma team ID to list project files from
+```
+
+### get_file
+Get detailed information about a specific Figma file.
+
+**Usage:**
+```
+Tool: get_file
+Arguments:
+  - file_key: The unique file identifier from the Figma URL
+```
+
+### get_file_nodes
+Retrieve specific nodes (design elements) from a file.
+
+**Usage:**
+```
+Tool: get_file_nodes
+Arguments:
+  - file_key: The Figma file identifier
+  - node_ids: Array of node IDs to fetch
+```
+
+## API Tools
+
+### get_files
+List all Figma files accessible to the authenticated user.
+
+**Usage:**
+```
+Tool: get_files
+Arguments: (none)
 ```
 
 ### get_file

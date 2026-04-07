@@ -1,27 +1,18 @@
-# Figma MCP Server - Setup Checklist (Node.js Version)
-
-**Note:** This is the original Node.js/TypeScript implementation. For the Python version, see [../figma-mcp-server-python/](../figma-mcp-server-python/).
+# Figma MCP Server - Setup Checklist
 
 ## Project Setup
 
-- [x] Initialize project structure with TypeScript
-- [x] Configure package.json with dependencies
-- [x] Set up TypeScript configuration (tsconfig.json)
+- [x] Initialize project structure with Python
+- [x] Configure requirements.txt with dependencies
 - [x] Create MCP server implementation
   - Server bootstrap with stdio transport
   - Tool definitions (get_files, get_file, get_file_nodes, get_component)
   - Figma API integration
   - Proper error handling and response formatting
 
-- [x] Build and compilation
-  - TypeScript build successful
-  - Output: dist/index.js
-  - No compilation errors
-
 - [x] Development tools configured
-  - VS Code launch configuration
-  - Recommended extensions
-  - Build scripts (npm run build, npm start, npm run dev)
+  - Python scripts for utilities
+  - Test server script
 
 - [x] Documentation
   - README.md with full API documentation
@@ -37,21 +28,22 @@
 
 - [ ] Install dependencies (if not already done):
   ```bash
-  npm install
-  ```
-
-- [ ] Build the project:
-  ```bash
-  npm run build
+  pip install -r requirements.txt
   ```
 
 ## Testing
 
 - [ ] Run the server locally:
   ```bash
-  npm start
+  python main.py
   ```
   Expected: Server runs on stdio without errors
+
+- [ ] Test server startup:
+  ```bash
+  python test_server.py
+  ```
+  Expected: Server starts successfully
 
 - [ ] Verify tools are available:
   - get_files
@@ -62,7 +54,7 @@
 ## Integration
 
 - [ ] Configure with Github Copilot in VS Code
-  - Update clay_desktop_config.json with server path
+  - Update claude_desktop_config.json with server path
   - Add FIGMA_API_TOKEN to environment
   - Restart the application
 
@@ -78,27 +70,37 @@
 The MCP server is fully set up and ready to use. Follow the steps in SETUP.md to get started.
 
 ### Key Files
-- `src/index.ts` - Main server implementation
-- `dist/index.js` - Compiled executable
+- `main.py` - Main server implementation
+- `requirements.txt` - Python dependencies
+- `explore_figma.py` - Utility to explore Figma files
+- `find_poc_design.py` - Find POC designs
+- `generate_component.py` - Generate Angular components
+- `update_component_from_figma.py` - Update components from Figma
+- `test_server.py` - Test server functionality
 - `.env` - Configuration (create from .env.example)
-- `package.json` - Dependencies and scripts
 
 ### Quick Commands
 ```bash
 # Install dependencies
-npm install
-
-# Build TypeScript
-npm run build
+pip install -r requirements.txt
 
 # Start server
-npm start
+python main.py
 
-# Watch mode (rebuild on changes)
-npm run watch
+# Test server
+python test_server.py
 
-# Development mode (build and run)
-npm run dev
+# Explore Figma files
+python explore_figma.py
+
+# Find POC designs
+python find_poc_design.py
+
+# Generate Angular component
+python generate_component.py
+
+# Update component from Figma
+python update_component_from_figma.py
 ```
 
 See [SETUP.md](./SETUP.md) for detailed instructions.
