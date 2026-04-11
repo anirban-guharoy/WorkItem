@@ -7,7 +7,7 @@ type TokenRecord = Record<string, { type: string; value: unknown; description?: 
 
 const figmaTools: Tool[] = [
 	{
-		name: "get_files",
+		name: "figma_get_files",
 		description: "List Figma files from a project or team",
 		inputSchema: {
 			type: "object",
@@ -24,7 +24,7 @@ const figmaTools: Tool[] = [
 		},
 	},
 	{
-		name: "get_file",
+		name: "figma_get_file",
 		description: "Get detailed information about a specific Figma file including its structure",
 		inputSchema: {
 			type: "object",
@@ -38,7 +38,7 @@ const figmaTools: Tool[] = [
 		},
 	},
 	{
-		name: "get_file_nodes",
+		name: "figma_get_file_nodes",
 		description: "Get specific nodes (elements) from a Figma file",
 		inputSchema: {
 			type: "object",
@@ -57,7 +57,7 @@ const figmaTools: Tool[] = [
 		},
 	},
 	{
-		name: "get_component",
+		name: "figma_get_component",
 		description: "Get component details from a Figma file",
 		inputSchema: {
 			type: "object",
@@ -75,7 +75,7 @@ const figmaTools: Tool[] = [
 		},
 	},
 	{
-		name: "extract_design_tokens",
+		name: "figma_extract_design_tokens",
 		description: "Extract design tokens (colors, typography, spacing) from a Figma file",
 		inputSchema: {
 			type: "object",
@@ -89,7 +89,7 @@ const figmaTools: Tool[] = [
 		},
 	},
 	{
-		name: "map_tokens_to_angular",
+		name: "figma_map_tokens_to_angular",
 		description: "Map Figma design tokens to Angular component styles and properties",
 		inputSchema: {
 			type: "object",
@@ -371,7 +371,7 @@ export async function handleFigmaTool(toolName: string, args: unknown): Promise<
 		const argsObj = (args as Record<string, unknown>) || {};
 
 		switch (toolName) {
-			case "get_files": {
+			case "figma_get_files": {
 				const projectId = argsObj.project_id as string | undefined;
 				const teamId = argsObj.team_id as string | undefined;
 
@@ -409,7 +409,7 @@ export async function handleFigmaTool(toolName: string, args: unknown): Promise<
 
 				return success(projectFiles);
 			}
-			case "get_file": {
+			case "figma_get_file": {
 				const fileKey = argsObj.file_key as string | undefined;
 				if (!fileKey) {
 					return failure("Error: file_key parameter is required");
@@ -417,7 +417,7 @@ export async function handleFigmaTool(toolName: string, args: unknown): Promise<
 
 				return success(await client.getFile(fileKey));
 			}
-			case "get_file_nodes": {
+			case "figma_get_file_nodes": {
 				const fileKey = argsObj.file_key as string | undefined;
 				const nodeIds = argsObj.node_ids as string[] | undefined;
 				if (!fileKey || !nodeIds || nodeIds.length === 0) {
@@ -426,7 +426,7 @@ export async function handleFigmaTool(toolName: string, args: unknown): Promise<
 
 				return success(await client.getFileNodes(fileKey, nodeIds));
 			}
-			case "get_component": {
+			case "figma_get_component": {
 				const fileKey = argsObj.file_key as string | undefined;
 				const componentId = argsObj.component_id as string | undefined;
 				if (!fileKey || !componentId) {
@@ -435,7 +435,7 @@ export async function handleFigmaTool(toolName: string, args: unknown): Promise<
 
 				return success(await client.getFileNodes(fileKey, [componentId]));
 			}
-			case "extract_design_tokens": {
+			case "figma_extract_design_tokens": {
 				const fileKey = argsObj.file_key as string | undefined;
 				if (!fileKey) {
 					return failure("Error: file_key parameter is required");
@@ -467,7 +467,7 @@ export async function handleFigmaTool(toolName: string, args: unknown): Promise<
 					variables: formatVariables(variables),
 				});
 			}
-			case "map_tokens_to_angular": {
+			case "figma_map_tokens_to_angular": {
 				const tokens = argsObj.tokens;
 				const componentName = argsObj.component_name as string | undefined;
 				if (!tokens || !componentName) {

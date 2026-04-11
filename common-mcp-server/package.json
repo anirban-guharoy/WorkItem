@@ -1,21 +1,38 @@
 {
   "name": "common-mcp-server",
   "version": "1.0.0",
-  "description": "Common MCP server for Figma and Jira integration",
+  "description": "Common MCP server for Figma, Jira, Confluence, and MongoDB vector integration",
   "type": "module",
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
     "dev": "tsc && node dist/server.js",
+    "dev:confluence": "tsc && node dist/confluence/server.js",
+    "dev:figma": "tsc && node dist/figma/server.js",
+    "dev:jira": "tsc && node dist/jira/server.js",
+    "dev:mongodb": "tsc && node dist/mongodb/server.js",
     "start": "node dist/server.js",
+    "start:confluence": "node dist/confluence/server.js",
+    "start:figma": "node dist/figma/server.js",
+    "start:jira": "node dist/jira/server.js",
+    "start:mongodb": "node dist/mongodb/server.js",
     "watch": "tsc --watch",
     "test": "node --test",
-    "map-tokens": "node figma/map-tokens-to-angular.mjs"
+    "confluence:search-pages": "node confluence/search-pages.mjs",
+    "confluence:get-page": "node confluence/get-page.mjs",
+    "confluence:create-page": "node confluence/create-page.mjs",
+    "confluence:update-page": "node confluence/update-page.mjs",
+    "map-tokens": "node figma/map-tokens-to-angular.mjs",
+    "test:figma-tokens": "node figma/test-token-mapper.mjs",
+    "jira:get-issues": "node jira/get-issues.mjs",
+    "jira:get-issue": "node jira/get-issue.mjs",
+    "jira:create-issue": "node jira/create-issue.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.6.0",
     "axios": "^1.6.0",
     "dotenv": "^16.3.1",
+    "mongodb": "^7.1.1",
     "node-fetch": "^3.3.2"
   },
   "devDependencies": {

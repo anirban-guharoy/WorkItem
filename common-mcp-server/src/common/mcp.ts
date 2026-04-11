@@ -1,6 +1,14 @@
+import { Tool } from "@modelcontextprotocol/sdk/types.js";
+
 export type ToolResult = {
   content: Array<{ type: "text"; text: string }>;
   isError?: boolean;
+};
+
+export type ToolModule = {
+  name: string;
+  tools: Tool[];
+  handleTool: (toolName: string, args: unknown) => Promise<ToolResult>;
 };
 
 export function success(data: unknown): ToolResult {

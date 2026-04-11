@@ -5,7 +5,7 @@ import { JiraClient } from "./jira-client.js";
 
 const jiraTools: Tool[] = [
 	{
-		name: "get_issues",
+		name: "jira_get_issues",
 		description: "Get issues from a Jira project",
 		inputSchema: {
 			type: "object",
@@ -24,7 +24,7 @@ const jiraTools: Tool[] = [
 		},
 	},
 	{
-		name: "create_issue",
+		name: "jira_create_issue",
 		description: "Create a new Jira issue",
 		inputSchema: {
 			type: "object",
@@ -50,7 +50,7 @@ const jiraTools: Tool[] = [
 		},
 	},
 	{
-		name: "get_issue",
+		name: "jira_get_issue",
 		description: "Get details of a specific Jira issue",
 		inputSchema: {
 			type: "object",
@@ -80,7 +80,7 @@ export async function handleJiraTool(toolName: string, args: unknown): Promise<T
 		const argsObj = (args as Record<string, unknown>) || {};
 
 		switch (toolName) {
-			case "get_issues": {
+			case "jira_get_issues": {
 				const projectKey = argsObj.project_key as string | undefined;
 				const maxResults = (argsObj.max_results as number | undefined) || 50;
 				if (!projectKey) {
@@ -89,7 +89,7 @@ export async function handleJiraTool(toolName: string, args: unknown): Promise<T
 
 				return success(await client.getIssues(projectKey, maxResults));
 			}
-			case "create_issue": {
+			case "jira_create_issue": {
 				const projectKey = argsObj.project_key as string | undefined;
 				const issueType = argsObj.issue_type as string | undefined;
 				const summary = argsObj.summary as string | undefined;
@@ -100,7 +100,7 @@ export async function handleJiraTool(toolName: string, args: unknown): Promise<T
 
 				return success(await client.createIssue(projectKey, issueType, summary, description));
 			}
-			case "get_issue": {
+			case "jira_get_issue": {
 				const issueKey = argsObj.issue_key as string | undefined;
 				if (!issueKey) {
 					return failure("Error: issue_key is required");

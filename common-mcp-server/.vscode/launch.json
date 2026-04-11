@@ -10,7 +10,76 @@
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
       "env": {
+        "FIGMA_API_TOKEN": "${env:FIGMA_API_TOKEN}",
+        "JIRA_BASE_URL": "${env:JIRA_BASE_URL}",
+        "JIRA_EMAIL": "${env:JIRA_EMAIL}",
+        "JIRA_API_TOKEN": "${env:JIRA_API_TOKEN}",
+        "CONFLUENCE_BASE_URL": "${env:CONFLUENCE_BASE_URL}",
+        "CONFLUENCE_EMAIL": "${env:CONFLUENCE_EMAIL}",
+        "CONFLUENCE_API_TOKEN": "${env:CONFLUENCE_API_TOKEN}",
+        "MONGODB_URI": "${env:MONGODB_URI}",
+        "MONGODB_DATABASE": "${env:MONGODB_DATABASE}",
+        "MONGODB_COLLECTION": "${env:MONGODB_COLLECTION}",
+        "MONGODB_VECTOR_INDEX": "${env:MONGODB_VECTOR_INDEX}",
+        "MONGODB_EMBEDDING_FIELD": "${env:MONGODB_EMBEDDING_FIELD}",
+        "MONGODB_CONTENT_FIELD": "${env:MONGODB_CONTENT_FIELD}"
+      }
+    },
+    {
+      "name": "Start MongoDB MCP Server",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/dist/mongodb/server.js",
+      "preLaunchTask": "npm: build",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "env": {
+        "MONGODB_URI": "${env:MONGODB_URI}",
+        "MONGODB_DATABASE": "${env:MONGODB_DATABASE}",
+        "MONGODB_COLLECTION": "${env:MONGODB_COLLECTION}",
+        "MONGODB_VECTOR_INDEX": "${env:MONGODB_VECTOR_INDEX}",
+        "MONGODB_EMBEDDING_FIELD": "${env:MONGODB_EMBEDDING_FIELD}",
+        "MONGODB_CONTENT_FIELD": "${env:MONGODB_CONTENT_FIELD}"
+      }
+    },
+    {
+      "name": "Start Confluence MCP Server",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/dist/confluence/server.js",
+      "preLaunchTask": "npm: build",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "env": {
+        "CONFLUENCE_BASE_URL": "${env:CONFLUENCE_BASE_URL}",
+        "CONFLUENCE_EMAIL": "${env:CONFLUENCE_EMAIL}",
+        "CONFLUENCE_API_TOKEN": "${env:CONFLUENCE_API_TOKEN}"
+      }
+    },
+    {
+      "name": "Start Figma MCP Server",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/dist/figma/server.js",
+      "preLaunchTask": "npm: build",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "env": {
         "FIGMA_API_TOKEN": "${env:FIGMA_API_TOKEN}"
+      }
+    },
+    {
+      "name": "Start Jira MCP Server",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/dist/jira/server.js",
+      "preLaunchTask": "npm: build",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "env": {
+        "JIRA_BASE_URL": "${env:JIRA_BASE_URL}",
+        "JIRA_EMAIL": "${env:JIRA_EMAIL}",
+        "JIRA_API_TOKEN": "${env:JIRA_API_TOKEN}"
       }
     }
   ]
