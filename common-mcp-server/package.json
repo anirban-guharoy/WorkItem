@@ -1,0 +1,28 @@
+{
+  "name": "common-mcp-server",
+  "version": "1.0.0",
+  "description": "Common MCP server for Figma and Jira integration",
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc && node dist/server.js",
+    "start": "node dist/server.js",
+    "watch": "tsc --watch",
+    "test": "node --test",
+    "map-tokens": "node figma/map-tokens-to-angular.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.6.0",
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.1",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.6",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

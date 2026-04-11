@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "common-mcp-server": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${workspaceFolder:WorkItem}/common-mcp-server/dist/server.js"]
+    }
+  }
+}
