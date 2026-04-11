@@ -8,10 +8,15 @@ import fetch from 'node-fetch';
 import fs from 'fs';
 
 const FIGMA_API_TOKEN = process.env.FIGMA_API_TOKEN;
-const FILE_KEY = 'yFsZrVGKYZvCnaL7AcnU8n';
+const FILE_KEY = process.argv[2] || process.env.FIGMA_FILE_KEY;
 
 if (!FIGMA_API_TOKEN) {
   console.error('Error: FIGMA_API_TOKEN environment variable is not set');
+  process.exit(1);
+}
+
+if (!FILE_KEY) {
+  console.error('Error: Figma file key is required. Pass it as the first argument or set FIGMA_FILE_KEY.');
   process.exit(1);
 }
 

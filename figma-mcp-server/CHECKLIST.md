@@ -12,6 +12,9 @@
   - Tool definitions (get_files, get_file, get_file_nodes, get_component)
   - Figma API integration
   - Proper error handling and response formatting
+  - **NEW:** Design token extraction and mapping tools
+    - extract_design_tokens: Extract colors, typography, spacing from Figma
+    - map_tokens_to_angular: Generate Angular components from design tokens
 
 - [x] Build and compilation
   - TypeScript build successful
@@ -22,11 +25,17 @@
   - VS Code launch configuration
   - Recommended extensions
   - Build scripts (npm run build, npm start, npm run dev)
+  - **NEW:** Token mapping script (npm run map-tokens)
 
 - [x] Documentation
   - README.md with full API documentation
   - SETUP.md with quick start guide
   - .env.example with template configuration
+  - **NEW:** Design token mapping examples and usage
+
+- [x] Testing utilities
+  - Mock data testing for token mapping
+  - Generated component validation
 
 ## Before Using
 

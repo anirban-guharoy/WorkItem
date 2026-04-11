@@ -14,11 +14,21 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const FIGMA_API_TOKEN = process.env.FIGMA_API_TOKEN;
-const FILE_KEY = 'yFsZrVGKYZvCnaL7AcnU8n';
-const COMPONENT_NAME = 'FigmaPoC';
+const FILE_KEY = process.argv[2] || process.env.FIGMA_FILE_KEY;
+const COMPONENT_NAME = process.argv[3] || process.env.COMPONENT_NAME;
 
 if (!FIGMA_API_TOKEN) {
   console.error('Error: FIGMA_API_TOKEN environment variable is not set');
+  process.exit(1);
+}
+
+if (!FILE_KEY) {
+  console.error('Error: Figma file key is required. Pass it as the first argument or set FIGMA_FILE_KEY.');
+  process.exit(1);
+}
+
+if (!COMPONENT_NAME) {
+  console.error('Error: Component name is required. Pass it as the second argument or set COMPONENT_NAME.');
   process.exit(1);
 }
 

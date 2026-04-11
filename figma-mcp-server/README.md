@@ -1,6 +1,5 @@
 # Figma MCP Server (Node.js Version)
 
-**Note:** This is the original Node.js/TypeScript implementation. For the Python version, see [../figma-mcp-server-python/](../figma-mcp-server-python/).
 
 A Model Context Protocol (MCP) server for integrating with Figma, enabling Github Copilot to access and interact with Figma files, components, and design elements.
 
@@ -81,6 +80,43 @@ Arguments:
   - file_key: The Figma file identifier
   - component_id: The component ID
 ```
+
+### extract_design_tokens
+Extract design tokens (colors, typography, spacing) from a Figma file.
+
+**Usage:**
+```
+Tool: extract_design_tokens
+Arguments:
+  - file_key: The Figma file identifier
+```
+
+### map_tokens_to_angular
+Map Figma design tokens to Angular component styles and properties.
+
+**Usage:**
+```
+Tool: map_tokens_to_angular
+Arguments:
+  - tokens: Design tokens object from extract_design_tokens
+  - component_name: Name for the generated Angular component
+```
+
+## Scripts
+
+### map-tokens-to-angular.mjs
+Standalone script to extract design tokens from Figma and generate a complete Angular component.
+
+**Usage:**
+```bash
+node map-tokens-to-angular.mjs
+```
+
+This script will:
+- Extract design tokens from your Figma file
+- Generate CSS custom properties (variables)
+- Create an Angular component with token-based styling
+- Output files to `generated-component/` directory
 
 ## Configuration
 
