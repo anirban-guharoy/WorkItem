@@ -2,8 +2,8 @@ import { createMcpServer, loadEnvironment, startRemoteServer } from "./common/se
 import { createConfluenceModule } from "./confluence/module.js";
 import { createFigmaModule } from "./figma/module.js";
 import { createJiraModule } from "./jira/module.js";
-import { createMongoDbModule } from "./mongodb/module.js";
 import { createSharePointModule } from "./sharepoint/module.js";
+import { createBackstageModule } from "./backstage/module.js";
 
 loadEnvironment();
 
@@ -11,8 +11,13 @@ const createServer = () =>
   createMcpServer({
     name: "common-mcp-server",
     version: "1.0.0",
-    modules: [createFigmaModule(), createJiraModule(), createConfluenceModule(), createMongoDbModule(), createSharePointModule()],
-    authenticator: null,
+    modules: [
+      createFigmaModule(),
+      createJiraModule(),
+      createConfluenceModule(),
+      createSharePointModule(),
+      createBackstageModule(),
+    ],
   });
 
 startRemoteServer(createServer, "Common remote MCP server").catch((error) => {

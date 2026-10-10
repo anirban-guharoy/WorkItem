@@ -1,16 +1,16 @@
 # common-mcp-server
 
-`common-mcp-server` is a Model Context Protocol (MCP) server organized around modules for `figma`, `jira`, `confluence`, `mongodb`, and remote SharePoint context search. You can run the first four through the shared stdio server or independently; SharePoint runs on the authenticated remote server.
+`common-mcp-server` is a Model Context Protocol (MCP) server organized around modules for `figma`, `jira`, `confluence`, SharePoint context search, and the Backstage software catalog. IDE users connect to the authenticated remote server and sign in individually with Entra ID. Figma, Jira, and Confluence calls use server-side service-account credentials; SharePoint uses the signed-in user's delegated Entra identity through On-Behalf-Of (OBO); Backstage calls use the MCP host's Entra application identity.
 
 ## Prerequisites
 
 - Node.js 22+
 - npm
-- Figma account with API token access
-- Jira account with API token access if Jira tools are needed
-- Confluence account with API token access if Confluence tools are needed
-- MongoDB deployment with vector search support if MongoDB vector tools are needed
+- Figma service account with API token access
+- Jira service account with API token access if Jira tools are needed
+- Confluence service account with API token access if Confluence tools are needed
 - Microsoft 365 tenant with SharePoint access if remote SharePoint search is needed
+- Remote Backstage Catalog API protected by Entra ID if Backstage tools are needed
 - VS Code with Github Copilot Chat extension
 
 ## Installation
@@ -33,16 +33,11 @@ npm run build
 npm start
 ```
 
-Domain-specific entrypoints are also available:
-
-```bash
-npm run start:figma
-npm run start:jira
-```
+Configure the IDE to connect to the deployed `MCP_PUBLIC_URL` using Entra authorization-code flow with PKCE.
 
 ## Configuration
 
-Configure this MCP server in VS Code settings for use with Github Copilot Chat. See [SETUP.md](./SETUP.md) for detailed instructions.
+Configure the IDE to connect to the deployed remote MCP URL and authenticate using Entra ID. See [SETUP.md](./SETUP.md) for detailed instructions.
 
 For full documentation, see SETUP.md.
 
@@ -50,51 +45,47 @@ For full documentation, see SETUP.md.
 
 | Variable | Description | Required |
 | --- | --- | --- |
-| `FIGMA_API_TOKEN` | Your Figma personal access token | Required for Figma tools |
+| `FIGMA_API_TOKEN` | Server-side Figma service-account token | Required for Figma tools |
 | `JIRA_BASE_URL` | Your Jira instance base URL | Required for Jira tools |
-| `JIRA_EMAIL` | Your Jira account email | Required for Jira tools |
-| `JIRA_API_TOKEN` | Your Jira API token | Required for Jira tools |
+| `JIRA_EMAIL` | Jira service-account email | Required for Jira tools |
+| `JIRA_API_TOKEN` | Server-side Jira service-account API token | Required for Jira tools |
 | `CONFLUENCE_BASE_URL` | Your Confluence site or wiki base URL | Required for Confluence tools |
-| `CONFLUENCE_EMAIL` | Your Confluence account email | Required for Confluence tools |
-| `CONFLUENCE_API_TOKEN` | Your Confluence API token | Required for Confluence tools |
-| `MONGODB_URI` | MongoDB connection string | Required for MongoDB vector tools |
-| `MONGODB_DATABASE` | MongoDB database name | Required for MongoDB vector tools |
-| `MONGODB_COLLECTION` | MongoDB collection name | Required for MongoDB vector tools |
-| `MONGODB_VECTOR_INDEX` | MongoDB vector search index name | Required for MongoDB vector tools |
-| `ENTRA_AUTH_ENABLED` | Enable Azure Entra ID developer authentication (`true`/`false`) | Optional (default `false`) |
-| `ENTRA_ACCESS_TOKEN` | Preferred native Entra JWT used to authorize MCP access | Recommended when `ENTRA_AUTH_ENABLED=true` |
-| `AZURE_ACCESS_TOKEN` | Alternate native Entra JWT environment variable | Optional |
-| `ENTRA_ID_TOKEN` | Alternate native Entra JWT environment variable | Optional |
-| `ENTRA_TENANT_ID` | Expected Azure Entra tenant ID and device-code fallback tenant | Optional, but recommended when `ENTRA_AUTH_ENABLED=true` |
-| `ENTRA_CLIENT_ID` | Public client application (App registration) ID for device-code fallback | Required only when no native token env var is supplied |
-| `ENTRA_CLIENT_SECRET` | Confidential credential for the remote MCP API's Graph On-Behalf-Of token exchange | Required for SharePoint search |
-| `ENTRA_SCOPES` | Optional comma-separated OAuth scopes for device-code fallback | Optional (defaults to `https://graph.microsoft.com/User.Read`) |
-| `ENTRA_ALLOWED_USER_EMAILS` | Optional comma-separated allow-list of developer UPN/email values | Optional |
-| `ENTRA_ALLOWED_TOKEN_AUDIENCES` | Optional comma-separated allow-list of Entra token audiences (`aud`) | Optional |
+| `CONFLUENCE_EMAIL` | Confluence service-account email | Required for Confluence tools |
+| `CONFLUENCE_API_TOKEN` | Server-side Confluence service-account API token | Required for Confluence tools |
+| `BACKSTAGE_BASE_URL` | Base URL of the remote Backstage instance | Required for Backstage tools |
+| `BACKSTAGE_API_SCOPE` | Entra application scope for the Backstage API (for example `api://<app-id>/.default`) | Required for Backstage tools |
+| `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_CLIENT_SECRET` | Standard Azure Identity credentials for local development, or `AZURE_CLIENT_ID` to select a user-assigned managed identity | Optional |
+| `ENTRA_AUTH_ENABLED` | Require Entra authentication for the remote MCP endpoint; must be `true` | Required for remote mode |
+| `ENTRA_TENANT_ID` | Entra tenant that issues IDE user tokens | Required for remote mode |
+| `ENTRA_CLIENT_ID` | Client ID of the MCP API app registration; also used for SharePoint OBO | Required for remote mode |
+| `ENTRA_CLIENT_SECRET` | Server-only confidential credential used for SharePoint OBO | Required for SharePoint search |
+| `ENTRA_ALLOWED_USER_EMAILS` | Optional comma-separated allow-list of user UPN/email values | Optional |
 | `MCP_PUBLIC_URL` | Public HTTPS URL of the remote MCP endpoint, including its path (for example `https://mcp.example.com/mcp`) | Required for remote mode |
 | `MCP_HOST` / `MCP_PORT` | Network interface and port for the remote HTTP listener | Optional (defaults `0.0.0.0:3000`) |
 | `MCP_ALLOWED_HOSTS` | Additional accepted HTTP Host values | Optional (public URL host is always accepted) |
 | `MCP_ALLOWED_ORIGINS` | Comma-separated browser origins allowed by CORS; `*` permits all | Optional |
-| `ENTRA_APP_ID_URI` | Identifier URI of the Entra-protected API | Optional (defaults to `api://ENTRA_CLIENT_ID`) |
+| `ENTRA_APP_ID_URI` | Identifier URI of the Entra-protected API, used in OAuth metadata | Optional (defaults to `api://ENTRA_CLIENT_ID`) |
 | `ENTRA_API_SCOPE` | Required delegated API scope in the token's `scp` claim | Optional (defaults to `access_as_user`) |
 
 ## Azure Entra ID Authentication
 
-When `ENTRA_AUTH_ENABLED=true`, the server requires a valid Azure Entra ID token before listing or invoking MCP tools.
+In remote mode, the IDE authenticates each user with Entra ID and sends that user's access token to the MCP endpoint. The server validates the token signature, issuer, audience, tenant, delegated API scope, expiry, and optional user allow-list on every request. Each MCP session is bound to its creating Entra user; a different user cannot reuse it. The IDE's OAuth client must be permitted to request the exposed API scope.
 
-- The preferred path is to pass a native Entra JWT through `ENTRA_ACCESS_TOKEN`, `AZURE_ACCESS_TOKEN`, or `ENTRA_ID_TOKEN`.
-- Supplied tokens are validated locally for expiry, optional tenant match, optional audience match, and optional user allow-list.
-- If no native token env var is supplied, the server falls back to device-code flow and prints sign-in instructions to stderr.
-- Device-code access is refreshed as needed while the server is running.
-- If `ENTRA_ALLOWED_USER_EMAILS` is set, only those users can use the server.
+The Jira, Confluence, and Figma credentials are service-account credentials configured only on the server. They are shared by authenticated MCP users, so grant those service accounts only the permissions required for the tools. Never put the service-account credentials or `ENTRA_CLIENT_SECRET` in IDE configuration.
+
+### Backstage app authentication
+
+`backstage_catalog_search` and `backstage_catalog_get_entity` call the remote Backstage Catalog API with an app-only Entra access token. The client uses Azure Identity `DefaultAzureCredential`, which selects the MCP host's managed identity in Azure and supports standard Azure credentials for local development. Configure `BACKSTAGE_BASE_URL` and `BACKSTAGE_API_SCOPE` on the MCP host, not in IDE settings. The scope is normally the Backstage API's application ID URI followed by `/.default`.
+
+Grant the MCP app or managed identity the required application permission on the Backstage API and grant admin consent. Backstage must validate Entra bearer tokens and authorize that application identity. These catalog calls use the MCP app's shared permissions; they do not run as the IDE user.
 
 ### Remote MCP for VS Code and IntelliJ
 
 Remote mode accepts Entra delegated access tokens from the IDE; it does not start a device-code flow or ask the user to sign in again. The IDE must obtain an access token for this API using the user's existing Entra session. Silent SSO depends on the IDE's Entra account and OAuth client configuration; the server cannot guarantee that a particular IDE will never display its own consent or account-selection prompt.
 
-1. In the Entra app registration for this MCP API, expose a delegated scope named `access_as_user` (or configure `ENTRA_API_SCOPE` to the scope name you expose). Use the app registration's client ID as `ENTRA_CLIENT_ID`; configure the access-token version to v2.
+1. Register the MCP API in Entra ID and expose a delegated scope named `access_as_user` (or configure `ENTRA_API_SCOPE` to the scope name you expose). Use the app registration's client ID as `ENTRA_CLIENT_ID`; configure the access-token version to v2.
 2. Grant the VS Code and IntelliJ OAuth clients permission to that delegated scope and grant admin consent if required by your tenant. Configure their authorization server as `https://login.microsoftonline.com/<tenant-id>/v2.0` and request `api://<ENTRA_CLIENT_ID>/access_as_user`.
-3. Set `ENTRA_AUTH_ENABLED=true`, `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, and `MCP_PUBLIC_URL` on the server. Keep TLS enabled at the server or trusted reverse proxy.
+3. Set `ENTRA_AUTH_ENABLED=true`, `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, and `MCP_PUBLIC_URL` on the server. Configure Jira, Confluence, and Figma service-account credentials on the server as needed. Keep TLS enabled at the server or trusted reverse proxy.
 4. Start the remote endpoint with `npm run start:remote`. The endpoint serves Streamable HTTP at `MCP_PUBLIC_URL` and OAuth protected-resource metadata at `/.well-known/oauth-protected-resource`.
 5. Configure each IDE's remote MCP client to use the `MCP_PUBLIC_URL` endpoint and the Entra OAuth authorization-code flow with PKCE. The IDE sends the resulting access token as a bearer token; each request is validated, and an MCP session cannot be reused by a different Entra user.
 
@@ -111,7 +102,7 @@ MCP_HOST=0.0.0.0
 MCP_PORT=3000
 ```
 
-The existing `npm start` and module-specific `npm run start:*` commands continue to use stdio for local integrations.
+`npm start` and `npm run start:remote` both run the Entra-authenticated remote endpoint.
 
 ## API Tools
 
@@ -272,66 +263,37 @@ Arguments:
   - limit: Maximum results to return (optional, defaults to 10; maximum 50)
 ```
 
-### mongodb_vector_upsert
-Upsert a vector document into MongoDB.
+### backstage_catalog_search
+Search Backstage catalog entities using its filter syntax, for example `kind=component,metadata.namespace=default`.
 
 **Usage:**
 ```
-Tool: mongodb_vector_upsert
+Tool: backstage_catalog_search
 Arguments:
-  - document_id: Stable id for the vector document
-  - content: Optional text content stored with the vector
-  - embedding: Numeric embedding array
-  - metadata: Optional metadata object
+  - filter: Backstage catalog filter expression
+  - limit: Maximum number of entities (optional, defaults to 20; maximum 100)
 ```
 
-### mongodb_vector_search
-Run a vector similarity search against MongoDB.
+### backstage_catalog_get_entity
+Get one catalog entity by kind, namespace, and name. The namespace defaults to `default`.
 
 **Usage:**
 ```
-Tool: mongodb_vector_search
+Tool: backstage_catalog_get_entity
 Arguments:
-  - query_vector: Numeric embedding array to search with
-  - limit: Maximum results to return (optional)
-  - num_candidates: Candidate pool size (optional)
-  - filter: Optional filter document
+  - kind: Entity kind, such as Component or API
+  - namespace: Entity namespace (optional, defaults to default)
+  - name: Entity name
 ```
 
-### mongodb_vector_get_document
-Get one MongoDB vector document by id.
-
-**Usage:**
-```
-Tool: mongodb_vector_get_document
-Arguments:
-  - document_id: Vector document id
-```
-
-### mongodb_vector_delete_document
-Delete one MongoDB vector document by id.
-
-**Usage:**
-```
-Tool: mongodb_vector_delete_document
-Arguments:
-  - document_id: Vector document id
-```
+Both tools use the MCP app's Entra identity and require the Backstage API configuration described above.
 
 ## Scripts
 
 ### Server entrypoints
 
-- `npm start`: Run the shared server with Figma, Jira, Confluence, and MongoDB modules.
-- `npm run start:mongodb`: Run only the MongoDB vector module.
-- `npm run start:remote`: Run the authenticated remote server, including SharePoint context search.
-- `npm run start:confluence`: Run only the Confluence module.
-- `npm run start:figma`: Run only the Figma module.
-- `npm run start:jira`: Run only the Jira module.
-- `npm run dev:mongodb`: Build and run only the MongoDB vector module.
-- `npm run dev:confluence`: Build and run only the Confluence module.
-- `npm run dev:figma`: Build and run only the Figma module.
-- `npm run dev:jira`: Build and run only the Jira module.
+- `npm start`: Run the Entra-authenticated remote server, including SharePoint context search.
+- `npm run start:remote`: Alias for the Entra-authenticated remote server.
 - `npm run test:figma-tokens`: Run the mock Figma token-mapping utility.
 - `npm run jira:get-issues`: Fetch recent Jira issues with the standalone Jira helper.
 - `npm run jira:get-issue`: Fetch one Jira issue with the standalone Jira helper.
@@ -353,9 +315,7 @@ This script will:
 
 Additional standalone Figma utilities are grouped under `figma/`:
 - `figma/explore-figma.mjs`
-- `figma/generate-component.mjs`
 - `figma/test-token-mapper.mjs`
-- `figma/update-component-from-figma.mjs`
 
 Standalone Jira utilities are grouped under `jira/`:
 - `jira/get-issues.mjs`
@@ -374,17 +334,13 @@ Standalone Confluence utilities are grouped under `confluence/`:
 
 | Variable | Description | Required |
 | --- | --- | --- |
-| `FIGMA_API_TOKEN` | Your Figma personal access token | Required for Figma tools |
+| `FIGMA_API_TOKEN` | Server-side Figma service-account token | Required for Figma tools |
 | `JIRA_BASE_URL` | Your Jira instance base URL | Required for Jira tools |
-| `JIRA_EMAIL` | Your Jira account email | Required for Jira tools |
-| `JIRA_API_TOKEN` | Your Jira API token | Required for Jira tools |
+| `JIRA_EMAIL` | Jira service-account email | Required for Jira tools |
+| `JIRA_API_TOKEN` | Server-side Jira service-account API token | Required for Jira tools |
 | `CONFLUENCE_BASE_URL` | Your Confluence site or wiki base URL | Required for Confluence tools |
-| `CONFLUENCE_EMAIL` | Your Confluence account email | Required for Confluence tools |
-| `CONFLUENCE_API_TOKEN` | Your Confluence API token | Required for Confluence tools |
-| `MONGODB_URI` | MongoDB connection string | Required for MongoDB vector tools |
-| `MONGODB_DATABASE` | MongoDB database name | Required for MongoDB vector tools |
-| `MONGODB_COLLECTION` | MongoDB collection name | Required for MongoDB vector tools |
-| `MONGODB_VECTOR_INDEX` | MongoDB vector search index name | Required for MongoDB vector tools |
+| `CONFLUENCE_EMAIL` | Confluence service-account email | Required for Confluence tools |
+| `CONFLUENCE_API_TOKEN` | Server-side Confluence service-account API token | Required for Confluence tools |
 
 ## Troubleshooting
 
@@ -404,7 +360,7 @@ Standalone Confluence utilities are grouped under `confluence/`:
 
 To add new tools or features:
 
-1. Add the tool to the relevant domain module under `src/figma/`, `src/jira/`, `src/confluence/`, or `src/mongodb/`
+1. Add the tool to the relevant domain module under `src/figma/`, `src/jira/`, or `src/confluence/`
 2. Keep cross-cutting server wiring in `src/common/server.ts`
 3. Expose the module through `src/figma/module.ts` or `src/jira/module.ts`
 4. Rebuild with `npm run build`
@@ -415,9 +371,9 @@ To add new tools or features:
 - **Figma module**: `src/figma/` contains the Figma client, tools, and Figma-only entrypoint, while `figma/` contains standalone Figma utilities.
 - **Jira module**: `src/jira/` contains the Jira client, tools, and Jira-only entrypoint, while `jira/` contains standalone Jira utilities.
 - **Confluence module**: `src/confluence/` contains the Confluence client, tools, and Confluence-only entrypoint, while `confluence/` contains standalone Confluence utilities.
-- **MongoDB module**: `src/mongodb/` contains the MongoDB vector client, tools, and MongoDB-only entrypoint.
 - **SharePoint module**: `src/sharepoint/` searches SharePoint and OneDrive with Microsoft Graph using the authenticated user's delegated permissions. It is registered on the remote server only.
-- **Combined server**: `src/server.ts` composes the Figma, Jira, Confluence, and MongoDB modules into the local stdio server; `src/remote-server.ts` also registers SharePoint.
+- **Backstage module**: `src/backstage/` searches the remote catalog and retrieves entities using the MCP host's Entra application identity.
+- **Remote server**: `src/remote-server.ts` composes the integration modules behind per-request Entra authentication.
 
 ## Resources
 

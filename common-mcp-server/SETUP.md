@@ -1,36 +1,28 @@
 # Common MCP Server - Quick Setup Guide
 
-**Note:** This workspace exposes modular Node.js/TypeScript MCP servers for `figma`, `jira`, `confluence`, `mongodb`, and remote SharePoint context search, plus a shared combined server.
+**Note:** This workspace exposes a Node.js/TypeScript MCP server for `figma`, `jira`, `confluence`, remote SharePoint context search, and the Backstage software catalog.
 
 ## What is this?
 
-This is a Model Context Protocol (MCP) server that allows AI assistants like GitHub Copilot to interact with Figma, Jira, Confluence, SharePoint, and MongoDB vector storage programmatically. It provides tools to fetch design data from Figma, issues from Jira, pages from Confluence, SharePoint search results, and vector documents from MongoDB.
+This is a Model Context Protocol (MCP) server that allows AI assistants like GitHub Copilot to interact with Figma, Jira, Confluence, SharePoint, and Backstage programmatically. It provides tools to fetch design data from Figma, issues from Jira, pages from Confluence, SharePoint search results, and Backstage catalog entities.
 
 ## Prerequisites
 
 - Node.js 22 or higher
-- A Figma account with API access if you want Figma tools
-- A Figma personal access token if you want Figma tools
-- A Jira account and API token if you want Jira tools
-- A Confluence account and API token if you want Confluence tools
-- A MongoDB deployment with vector search support if you want MongoDB vector tools
+- Figma service account with API access if you want Figma tools
+- Jira service account and API token if you want Jira tools
+- Confluence service account and API token if you want Confluence tools
 - Microsoft 365 tenant and Entra app registration if you want remote SharePoint search
+- Remote Backstage Catalog API protected by Entra ID if you want Backstage tools
 - VS Code with Github Copilot Chat extension
 
-## Step 1: Get Your Figma API Token
-
-1. Go to [Figma Developer Settings](https://www.figma.com/developers/api#access-tokens)
-2. Click "Create a new token"
-3. Give it a name (e.g., "MCP Server Token")
-4. Copy the generated token (you'll only see it once!)
-
-## Step 2: Install Dependencies
+## Step 1: Install Dependencies
 
 ```bash
 npm install
 ```
 
-## Step 3: Configure Environment
+## Step 2: Configure the Server
 
 Create a `.env` file from the template:
 
@@ -38,67 +30,21 @@ Create a `.env` file from the template:
 cp .env.example .env
 ```
 
-Then edit `.env` and add your Figma token:
+Keep these credentials on the MCP host (preferably injected from a secret manager). Set server-side service-account credentials for the integrations you enable:
 
 ```env
-FIGMA_API_TOKEN=your_actual_token_here
-```
-
-If you want to use Jira features, also add:
-
-```env
+FIGMA_API_TOKEN=figma_service_account_token
 JIRA_BASE_URL=https://your-domain.atlassian.net
-JIRA_EMAIL=your-email@example.com
+JIRA_EMAIL=mcp-service-account@yourcompany.com
 JIRA_API_TOKEN=your_jira_api_token_here
-```
-
-If you want to use Confluence features, also add:
-
-```env
 CONFLUENCE_BASE_URL=https://your-domain.atlassian.net/wiki
-CONFLUENCE_EMAIL=your-email@example.com
+CONFLUENCE_EMAIL=mcp-service-account@yourcompany.com
 CONFLUENCE_API_TOKEN=your_confluence_api_token_here
+BACKSTAGE_BASE_URL=https://backstage.example.com
+BACKSTAGE_API_SCOPE=api://your-backstage-app-id/.default
 ```
 
-If you want to use MongoDB vector features, also add:
-
-```env
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/?retryWrites=true&w=majority
-MONGODB_DATABASE=common_mcp
-MONGODB_COLLECTION=vectors
-MONGODB_VECTOR_INDEX=vector_index
-```
-
-To require Azure Entra ID authentication for the developer using the MCP server, also add:
-
-```env
-ENTRA_AUTH_ENABLED=true
-# Preferred: inject a native Entra JWT from the host or client process.
-ENTRA_ACCESS_TOKEN=eyJ...
-
-# Optional fallback configuration for interactive device-code login.
-ENTRA_TENANT_ID=your-entra-tenant-id
-ENTRA_CLIENT_ID=your-public-client-app-id
-# Optional (default is https://graph.microsoft.com/User.Read)
-ENTRA_SCOPES=https://graph.microsoft.com/User.Read
-# Optional allow-list
-ENTRA_ALLOWED_USER_EMAILS=developer@yourcompany.com
-# Optional allowed audiences
-ENTRA_ALLOWED_TOKEN_AUDIENCES=api://your-app-id,00000003-0000-0000-c000-000000000000
-```
-
-The auth order is:
-
-1. If `ENTRA_ACCESS_TOKEN`, `AZURE_ACCESS_TOKEN`, or `ENTRA_ID_TOKEN` is present, the server validates that token and uses it directly.
-2. If no native token env var is present, the server falls back to Azure Entra device-code flow using `ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID`.
-
-## Remote MCP with Entra SSO
-
-For VS Code or IntelliJ connecting to a remotely hosted server, configure the Entra app registration as a protected API. Expose a delegated `access_as_user` scope, use the app's client ID as `ENTRA_CLIENT_ID`, set the app to issue v2 access tokens, and grant the IDE's OAuth client permission to the scope. The IDE requests `api://<ENTRA_CLIENT_ID>/access_as_user` from `https://login.microsoftonline.com/<tenant-id>/v2.0` using authorization code with PKCE. The IDE uses its existing Entra account session; any silent sign-in behavior is controlled by the IDE and tenant policy.
-
-For SharePoint context search, add the Microsoft Graph **delegated** `Files.Read.All` permission to this same API app registration and grant consent. Create a client secret (or use a secret manager to inject it) for the confidential OBO exchange. The remote server exchanges the IDE's API token for a Graph token on behalf of that same user; Graph search results remain subject to that user's SharePoint permissions. Keep the client secret on the server only; never put it in IDE/client configuration. SharePoint search is remote-only because local stdio requests do not carry the per-request user assertion required for OBO.
-
-Set these server variables and start the remote endpoint:
+Register the MCP as an Entra-protected API and configure its remote endpoint. The IDE obtains an individual user token; do not inject a user's access token into the server environment.
 
 ```env
 ENTRA_AUTH_ENABLED=true
@@ -112,14 +58,15 @@ MCP_HOST=0.0.0.0
 MCP_PORT=3000
 ```
 
-```bash
-npm run build
-npm run start:remote
-```
+Expose the delegated `access_as_user` scope (or the configured `ENTRA_API_SCOPE`) and grant the IDE's OAuth client permission and consent. Configure the IDE to use `https://login.microsoftonline.com/<tenant-id>/v2.0`, request `api://<ENTRA_CLIENT_ID>/access_as_user`, and use authorization-code flow with PKCE. Each incoming request is validated, and each MCP session is restricted to the Entra user who created it. Silent sign-in depends on the IDE and tenant policy.
 
-The Streamable HTTP endpoint is `MCP_PUBLIC_URL`. OAuth protected-resource metadata is published at `https://mcp.example.com/.well-known/oauth-protected-resource` and identifies the tenant-specific Entra v2 authorization server. Remote requests must include an Entra bearer token for this API; the server validates its signature, issuer, audience, delegated scope, tenant, and optional user allow-list on every request. SharePoint search exchanges that request's token using OBO and calls Microsoft Graph with delegated `Files.Read.All`. HTTPS is required outside localhost. Put the publicly reachable URL in the IDE's remote MCP configuration.
+For SharePoint, grant the API app delegated Microsoft Graph `Files.Read.All` and consent. The server exchanges the incoming user's API token with OBO, so search results follow that user's SharePoint permissions. `ENTRA_CLIENT_SECRET` remains server-side. For Figma, Jira, and Confluence, the server instead uses the configured service accounts for every authenticated IDE user; grant each service account only the required permissions.
 
-## Step 4: Build the Project
+For Backstage, grant the MCP app or managed identity application access to the Backstage API and grant admin consent. Configure `BACKSTAGE_BASE_URL` and the Backstage API's `/.default` scope on the MCP host. The server uses Azure Identity `DefaultAzureCredential` to obtain an app-only token: managed identity in Azure, or standard Azure credentials during local development. Backstage must validate the Entra token and authorize the MCP application identity; these calls do not preserve the IDE user's identity.
+
+The Streamable HTTP endpoint is `MCP_PUBLIC_URL`; OAuth protected-resource metadata is published at `/.well-known/oauth-protected-resource`. HTTPS is required outside localhost. Configure the IDE with the public endpoint URL and its Entra OAuth flow; do not put integration tokens or the OBO client secret in IDE settings.
+
+## Step 3: Build the Project
 
 ```bash
 npm run build
@@ -127,9 +74,9 @@ npm run build
 
 This compiles TypeScript to JavaScript in the `dist/` folder.
 
-## Step 5: Test the Server
+## Step 4: Start the Server
 
-To verify everything is working:
+After configuring the environment:
 
 ```bash
 npm start
@@ -137,138 +84,18 @@ npm start
 
 You should see output like:
 ```
-Common MCP server running on stdio
+Common remote MCP server listening at https://mcp.example.com/mcp
 ```
 
-(Press Ctrl+C to stop)
+`npm run start:remote` is an alias for `npm start`.
 
-You can also validate the module-specific entrypoints:
+## Using with GitHub Copilot or another IDE
 
-```bash
-npm run start:figma
-npm run start:jira
-npm run start:confluence
-npm run start:mongodb
-npm run start:remote
-```
-
-## Using with Github Copilot
-
-To use this MCP server with Github Copilot in VS Code, you'll need to configure it in your VS Code settings. Here's how:
-
-### For VS Code with Github Copilot Chat
-
-1. Open VS Code settings (Ctrl/Cmd + ,)
-2. Search for "MCP" or "Model Context Protocol"
-3. Add the following configuration to your VS Code settings:
-
-```json
-{
-  "github.copilot.chat.mcp": {
-    "common": {
-      "command": "node",
-      "args": ["${workspaceFolder}/dist/server.js"],
-      "env": {
-        "FIGMA_API_TOKEN": "your_token_here",
-        "JIRA_BASE_URL": "https://your-domain.atlassian.net",
-        "JIRA_EMAIL": "your-email@example.com",
-        "JIRA_API_TOKEN": "your_jira_token_here",
-        "CONFLUENCE_BASE_URL": "https://your-domain.atlassian.net/wiki",
-        "CONFLUENCE_EMAIL": "your-email@example.com",
-        "CONFLUENCE_API_TOKEN": "your_confluence_token_here",
-        "MONGODB_URI": "mongodb+srv://username:password@cluster.mongodb.net/?retryWrites=true&w=majority",
-        "MONGODB_DATABASE": "common_mcp",
-        "MONGODB_COLLECTION": "vectors",
-        "MONGODB_VECTOR_INDEX": "vector_index",
-        "ENTRA_AUTH_ENABLED": "true",
-        "ENTRA_ACCESS_TOKEN": "eyJ...",
-        "ENTRA_TENANT_ID": "your-entra-tenant-id",
-        "ENTRA_CLIENT_ID": "your-public-client-app-id",
-        "ENTRA_SCOPES": "https://graph.microsoft.com/User.Read",
-        "ENTRA_ALLOWED_USER_EMAILS": "developer@yourcompany.com",
-        "ENTRA_ALLOWED_TOKEN_AUDIENCES": "api://your-app-id"
-      }
-    },
-    "figma": {
-      "command": "node",
-      "args": ["${workspaceFolder}/dist/figma/server.js"],
-      "env": {
-        "FIGMA_API_TOKEN": "your_token_here"
-      }
-    },
-    "jira": {
-      "command": "node",
-      "args": ["${workspaceFolder}/dist/jira/server.js"],
-      "env": {
-        "JIRA_BASE_URL": "https://your-domain.atlassian.net",
-        "JIRA_EMAIL": "your-email@example.com",
-        "JIRA_API_TOKEN": "your_jira_token_here"
-      }
-    },
-    "confluence": {
-      "command": "node",
-      "args": ["${workspaceFolder}/dist/confluence/server.js"],
-      "env": {
-        "CONFLUENCE_BASE_URL": "https://your-domain.atlassian.net/wiki",
-        "CONFLUENCE_EMAIL": "your-email@example.com",
-        "CONFLUENCE_API_TOKEN": "your_confluence_token_here"
-      }
-    },
-    "mongodb": {
-      "command": "node",
-      "args": ["${workspaceFolder}/dist/mongodb/server.js"],
-      "env": {
-        "MONGODB_URI": "mongodb+srv://username:password@cluster.mongodb.net/?retryWrites=true&w=majority",
-        "MONGODB_DATABASE": "common_mcp",
-        "MONGODB_COLLECTION": "vectors",
-        "MONGODB_VECTOR_INDEX": "vector_index"
-      }
-    }
-  }
-}
-```
-
-Replace `your_token_here` with your actual Figma API token.
-
-Alternatively, you can configure it through the Copilot Chat interface:
-1. Open Copilot Chat in VS Code
-2. Click on the settings icon (gear)
-3. Go to "MCP Servers"
-4. Add one or more servers with the following details:
-  - Name: `common`
-  - Command: `node`
-  - Arguments: `${workspaceFolder}/dist/server.js`
-  - Environment: `FIGMA_API_TOKEN=your_token_here`, plus Jira env vars if you want Jira tools, plus `ENTRA_AUTH_ENABLED=true` and either `ENTRA_ACCESS_TOKEN=...` or the device-code fallback vars `ENTRA_TENANT_ID=...` and `ENTRA_CLIENT_ID=...`
-  - Name: `figma`
-  - Command: `node`
-  - Arguments: `${workspaceFolder}/dist/figma/server.js`
-  - Environment: `FIGMA_API_TOKEN=your_token_here`
-  - Name: `jira`
-  - Command: `node`
-  - Arguments: `${workspaceFolder}/dist/jira/server.js`
-  - Environment: `JIRA_BASE_URL=...`, `JIRA_EMAIL=...`, `JIRA_API_TOKEN=...`
-  - Name: `confluence`
-  - Command: `node`
-  - Arguments: `${workspaceFolder}/dist/confluence/server.js`
-  - Environment: `CONFLUENCE_BASE_URL=...`, `CONFLUENCE_EMAIL=...`, `CONFLUENCE_API_TOKEN=...`
-  - Name: `mongodb`
-  - Command: `node`
-  - Arguments: `${workspaceFolder}/dist/mongodb/server.js`
-  - Environment: `MONGODB_URI=...`, `MONGODB_DATABASE=...`, `MONGODB_COLLECTION=...`, `MONGODB_VECTOR_INDEX=...`
+Configure the IDE with the deployed `MCP_PUBLIC_URL` and Entra authorization-code flow with PKCE for the `access_as_user` scope. The IDE signs in each user and sends that user bearer token. Do not configure Jira, Confluence, or Figma service-account credentials, the SharePoint OBO secret, or a user access token in IDE settings. Follow the IDE remote MCP configuration UI and your tenant OAuth client consent policy.
 
 ## Available Tools
 
-## Azure Entra ID Authentication Flow
-
-When `ENTRA_AUTH_ENABLED=true`, the MCP server checks for a native Entra token first before allowing tool list/call requests.
-
-1. Start the MCP server from VS Code or terminal.
-2. If `ENTRA_ACCESS_TOKEN`, `AZURE_ACCESS_TOKEN`, or `ENTRA_ID_TOKEN` is set, the server validates that token and grants MCP access.
-3. If no native token env var is set, follow the device-code prompt printed by the server.
-4. Complete sign-in in the browser.
-5. MCP tool access is granted only after token validation or sign-in succeeds.
-
-Once configured, the MCP server provides these tools in Github Copilot Chat:
+The authenticated remote MCP server provides these tools:
 
 ### 1. `figma_get_files`
 Lists Figma files from a project or team.
@@ -364,37 +191,7 @@ Updates an existing Confluence page.
   - `body`: Updated page content in storage format
   - `version_number` (optional): Next version number for the page; if omitted, the current version is fetched automatically
 
-### 14. `mongodb_vector_upsert`
-Upserts a vector document into MongoDB.
-
-**Arguments:**
-  - `document_id`: Stable document id
-  - `content` (optional): Text content
-  - `embedding`: Numeric embedding array
-  - `metadata` (optional): Metadata object
-
-### 15. `mongodb_vector_search`
-Runs a vector similarity search against MongoDB.
-
-**Arguments:**
-  - `query_vector`: Numeric embedding array
-  - `limit` (optional): Maximum results
-  - `num_candidates` (optional): Candidate pool size
-  - `filter` (optional): Filter document
-
-### 16. `mongodb_vector_get_document`
-Gets a stored MongoDB vector document by id.
-
-**Arguments:**
-  - `document_id`: Vector document id
-
-### 17. `mongodb_vector_delete_document`
-Deletes a stored MongoDB vector document by id.
-
-**Arguments:**
-  - `document_id`: Vector document id
-
-### 18. `sharepoint_search`
+### 14. `sharepoint_search`
 Searches SharePoint and OneDrive content available to the signed-in user.
 
 **Arguments:**
@@ -402,6 +199,23 @@ Searches SharePoint and OneDrive content available to the signed-in user.
   - `limit` (optional): Maximum number of results (1-50, defaults to 10)
 
 Available on the authenticated remote MCP server. Requires delegated Microsoft Graph `Files.Read.All` consent and server-side `ENTRA_CLIENT_SECRET` for OBO.
+
+### 15. `backstage_catalog_search`
+Searches Backstage catalog entities using its filter syntax, for example `kind=component,metadata.namespace=default`.
+
+**Arguments:**
+  - `filter`: Backstage catalog filter expression
+  - `limit` (optional): Maximum number of entities (1-100, defaults to 20)
+
+### 16. `backstage_catalog_get_entity`
+Gets one Backstage catalog entity by kind, namespace, and name. Namespace defaults to `default`.
+
+**Arguments:**
+  - `kind`: Entity kind, such as Component or API
+  - `namespace` (optional): Entity namespace
+  - `name`: Entity name
+
+Both tools use the MCP app's Entra identity. Configure `BACKSTAGE_BASE_URL` and `BACKSTAGE_API_SCOPE` on the server.
 
 ## Troubleshooting
 
@@ -455,9 +269,8 @@ npm run dev
 │   ├── confluence/        # Confluence module and Confluence-only server entrypoint
 │   ├── figma/             # Figma module and Figma-only server entrypoint
 │   ├── jira/              # Jira module and Jira-only server entrypoint
-│   ├── mongodb/           # MongoDB vector module and MongoDB-only server entrypoint
 │   ├── sharepoint/        # Remote-only SharePoint search via Microsoft Graph OBO
-│   └── server.ts          # Combined server entrypoint
+│   └── remote-server.ts   # Entra-authenticated remote server entrypoint
 ├── dist/                  # Compiled JavaScript output
 ├── package.json           # Project dependencies
 ├── tsconfig.json          # TypeScript configuration
@@ -485,9 +298,9 @@ Confluence utilities:
 ## Next Steps
 
 1. ✅ Install and build
-2. ✅ Configure with your Figma token
+2. ✅ Configure service-account credentials on the server
 3. ✅ Test the server
-4. ✅ Configure in Github Copilot (VS Code)
-5. ✅ Start using the combined or module-specific servers.
+4. ✅ Configure the IDE to connect to the remote endpoint with Entra ID
+5. ✅ Use the hybrid-authenticated MCP server.
 
 For more details, see [README.md](./README.md).

@@ -2,23 +2,20 @@ import dotenv from "dotenv";
 import { randomUUID } from "node:crypto";
 import { createServer as createHttpServer, IncomingMessage, ServerResponse } from "node:http";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { runWithEntraAssertion } from "./request-context.js";
 import {
-  createDeveloperAuthenticatorFromEnv,
   createEntraRemoteAuthConfigFromEnv,
   DeveloperIdentity,
   verifyEntraRemoteAccessToken,
 } from "./auth.js";
-import { failure, ToolModule, unknownTool } from "./mcp.js";
+import { ToolModule, unknownTool } from "./mcp.js";
 
 type ServerOptions = {
   name: string;
   version: string;
   modules: ToolModule[];
-  authenticator?: ReturnType<typeof createDeveloperAuthenticatorFromEnv>;
 };
 
 type RemoteSession = {
@@ -31,10 +28,9 @@ export function loadEnvironment(): void {
   dotenv.config();
 }
 
-export function createMcpServer({ name, version, modules, authenticator }: ServerOptions): Server {
+export function createMcpServer({ name, version, modules }: ServerOptions): Server {
   const tools = modules.flatMap((module) => module.tools);
   const handlersByToolName = new Map<string, ToolModule>();
-  const developerAuthenticator = authenticator === undefined ? createDeveloperAuthenticatorFromEnv() : authenticator;
 
   for (const module of modules) {
     for (const tool of module.tools) {
@@ -62,22 +58,12 @@ export function createMcpServer({ name, version, modules, authenticator }: Serve
   );
 
   server.setRequestHandler(ListToolsRequestSchema, async () => {
-    const authError = await ensureAuthenticated(developerAuthenticator);
-    if (authError) {
-      throw new Error(authError);
-    }
-
     return {
       tools,
     };
   });
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const authError = await ensureAuthenticated(developerAuthenticator);
-    if (authError) {
-      return failure(authError);
-    }
-
     const toolName = request.params.name;
     const module = handlersByToolName.get(toolName);
 
@@ -89,12 +75,6 @@ export function createMcpServer({ name, version, modules, authenticator }: Serve
   });
 
   return server;
-}
-
-export async function startServer(server: Server, label: string): Promise<void> {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error(`${label} running on stdio`);
 }
 
 export async function startRemoteServer(createServer: () => Server, label: string): Promise<void> {
@@ -271,20 +251,4 @@ function setCorsHeaders(request: IncomingMessage, response: ServerResponse, allo
 
 function parseCsvEnv(value: string | undefined): string[] {
   return value?.split(",").map((entry) => entry.trim()).filter(Boolean) ?? [];
-}
-
-async function ensureAuthenticated(
-  developerAuthenticator: ReturnType<typeof createDeveloperAuthenticatorFromEnv>
-): Promise<string | null> {
-  if (!developerAuthenticator) {
-    return null;
-  }
-
-  try {
-    await developerAuthenticator.ensureAuthenticated();
-    return null;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown authentication error";
-    return `Azure Entra authentication failed: ${message}`;
-  }
 }

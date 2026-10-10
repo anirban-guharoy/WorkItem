@@ -1,6 +1,6 @@
 # Common MCP Server - Setup Checklist
 
-**Note:** This workspace now runs modular Node.js/TypeScript MCP servers for Figma, Jira, Confluence, MongoDB, and the combined shared server.
+**Note:** This workspace runs the combined Node.js/TypeScript MCP server over authenticated Streamable HTTP for Figma, Jira, Confluence, and SharePoint.
 
 ## Project Setup
 
@@ -8,14 +8,13 @@
 - [x] Configure package.json with dependencies
 - [x] Set up TypeScript configuration (tsconfig.json)
 - [x] Create MCP server implementation
-  - Server bootstrap with stdio transport
+  - Entra-authenticated remote HTTP server
   - Shared server composition layer
-  - Domain modules for Figma, Jira, Confluence, and MongoDB
+  - Domain modules for Figma, Jira, and Confluence
   - Tool definitions (figma_get_files, figma_get_file, figma_get_file_nodes, figma_get_component)
   - Figma API integration
   - Jira API integration
   - Confluence API integration
-  - MongoDB vector search integration
   - Proper error handling and response formatting
   - **NEW:** Design token extraction and mapping tools
     - figma_extract_design_tokens: Extract colors, typography, spacing from Figma
@@ -23,14 +22,13 @@
 
 - [x] Build and compilation
   - TypeScript build successful
-  - Output: dist/server.js
+  - Output: dist/remote-server.js
   - No compilation errors
 
 - [x] Development tools configured
   - VS Code launch configuration
   - Recommended extensions
-  - Build scripts (npm run build, npm start, npm run dev)
-  - Module scripts (npm run start:figma, npm run start:jira, npm run start:confluence, npm run start:mongodb)
+  - Build and remote server scripts (npm run build, npm start)
   - **NEW:** Token mapping script (npm run map-tokens)
   - **NEW:** Standalone Jira utility scripts under `jira/`
 
@@ -46,10 +44,7 @@
 
 ## Before Using
 
-- [ ] Set up Figma API Token
-  1. Go to https://www.figma.com/developers/api#access-tokens
-  2. Create a new personal access token
-  3. Copy the token to `.env` file
+- [ ] Configure Figma, Jira, and Confluence service-account credentials in the server secret store
 
 - [ ] Install dependencies (if not already done):
   ```bash
@@ -63,11 +58,11 @@
 
 ## Testing
 
-- [ ] Run the server locally:
+- [ ] Run the authenticated remote server:
   ```bash
   npm start
   ```
-  Expected: Server runs on stdio without errors
+  Expected: Server listens at `MCP_PUBLIC_URL`
 
 - [ ] Verify tools are available:
   - figma_get_files
@@ -81,17 +76,10 @@
   - confluence_get_page
   - confluence_create_page
   - confluence_update_page
-  - mongodb_vector_upsert
-  - mongodb_vector_search
-  - mongodb_vector_get_document
-  - mongodb_vector_delete_document
 
 ## Integration
 
-- [ ] Configure with Github Copilot in VS Code
-  - Update clay_desktop_config.json with server path
-  - Add FIGMA_API_TOKEN to environment
-  - Restart the application
+- [ ] Configure the IDE's remote MCP client with `MCP_PUBLIC_URL` and Entra ID OAuth
 
 - [ ] Test with Figma files
   - Verify API token has access to your files
@@ -106,19 +94,14 @@ The MCP server is fully set up and ready to use. Follow the steps in SETUP.md to
 
 ### Key Files
 - `src/common/server.ts` - Shared MCP server builder
-- `src/server.ts` - Combined server entrypoint
+- `src/remote-server.ts` - Authenticated remote server entrypoint
 - `src/confluence/` - Confluence tools, module, and client
-- `src/mongodb/` - MongoDB vector tools, module, and client
 - `confluence/` - Standalone Confluence utility scripts
 - `src/figma/` - Figma tools, module, and client
 - `figma/` - Standalone Figma utility scripts and token-mapper test
 - `src/jira/` - Jira tools, module, and client
 - `jira/` - Standalone Jira utility scripts
-- `dist/server.js` - Compiled executable
-- `dist/confluence/server.js` - Confluence-only executable
-- `dist/mongodb/server.js` - MongoDB-only executable
-- `dist/figma/server.js` - Figma-only executable
-- `dist/jira/server.js` - Jira-only executable
+- `dist/remote-server.js` - Compiled remote executable
 - `.env` - Configuration (create from .env.example)
 - `package.json` - Dependencies and scripts
 
@@ -132,18 +115,6 @@ npm run build
 
 # Start server
 npm start
-
-# Start Figma-only server
-npm run start:figma
-
-# Start Jira-only server
-npm run start:jira
-
-# Start Confluence-only server
-npm run start:confluence
-
-# Start MongoDB-only server
-npm run start:mongodb
 
 # Watch mode (rebuild on changes)
 npm run watch
