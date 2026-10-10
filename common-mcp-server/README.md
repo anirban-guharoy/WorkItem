@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-- Node.js 18+
+- Node.js 22+
 - npm
 - Figma account with API token access
 - Jira account with API token access if Jira tools are needed
@@ -60,6 +60,56 @@ For full documentation, see SETUP.md.
 | `MONGODB_DATABASE` | MongoDB database name | Required for MongoDB vector tools |
 | `MONGODB_COLLECTION` | MongoDB collection name | Required for MongoDB vector tools |
 | `MONGODB_VECTOR_INDEX` | MongoDB vector search index name | Required for MongoDB vector tools |
+| `ENTRA_AUTH_ENABLED` | Enable Azure Entra ID developer authentication (`true`/`false`) | Optional (default `false`) |
+| `ENTRA_ACCESS_TOKEN` | Preferred native Entra JWT used to authorize MCP access | Recommended when `ENTRA_AUTH_ENABLED=true` |
+| `AZURE_ACCESS_TOKEN` | Alternate native Entra JWT environment variable | Optional |
+| `ENTRA_ID_TOKEN` | Alternate native Entra JWT environment variable | Optional |
+| `ENTRA_TENANT_ID` | Expected Azure Entra tenant ID and device-code fallback tenant | Optional, but recommended when `ENTRA_AUTH_ENABLED=true` |
+| `ENTRA_CLIENT_ID` | Public client application (App registration) ID for device-code fallback | Required only when no native token env var is supplied |
+| `ENTRA_SCOPES` | Optional comma-separated OAuth scopes for device-code fallback | Optional (defaults to `https://graph.microsoft.com/User.Read`) |
+| `ENTRA_ALLOWED_USER_EMAILS` | Optional comma-separated allow-list of developer UPN/email values | Optional |
+| `ENTRA_ALLOWED_TOKEN_AUDIENCES` | Optional comma-separated allow-list of Entra token audiences (`aud`) | Optional |
+| `MCP_PUBLIC_URL` | Public HTTPS URL of the remote MCP endpoint, including its path (for example `https://mcp.example.com/mcp`) | Required for remote mode |
+| `MCP_HOST` / `MCP_PORT` | Network interface and port for the remote HTTP listener | Optional (defaults `0.0.0.0:3000`) |
+| `MCP_ALLOWED_HOSTS` | Additional accepted HTTP Host values | Optional (public URL host is always accepted) |
+| `MCP_ALLOWED_ORIGINS` | Comma-separated browser origins allowed by CORS; `*` permits all | Optional |
+| `ENTRA_APP_ID_URI` | Identifier URI of the Entra-protected API | Optional (defaults to `api://ENTRA_CLIENT_ID`) |
+| `ENTRA_API_SCOPE` | Required delegated API scope in the token's `scp` claim | Optional (defaults to `access_as_user`) |
+
+## Azure Entra ID Authentication
+
+When `ENTRA_AUTH_ENABLED=true`, the server requires a valid Azure Entra ID token before listing or invoking MCP tools.
+
+- The preferred path is to pass a native Entra JWT through `ENTRA_ACCESS_TOKEN`, `AZURE_ACCESS_TOKEN`, or `ENTRA_ID_TOKEN`.
+- Supplied tokens are validated locally for expiry, optional tenant match, optional audience match, and optional user allow-list.
+- If no native token env var is supplied, the server falls back to device-code flow and prints sign-in instructions to stderr.
+- Device-code access is refreshed as needed while the server is running.
+- If `ENTRA_ALLOWED_USER_EMAILS` is set, only those users can use the server.
+
+### Remote MCP for VS Code and IntelliJ
+
+Remote mode accepts Entra delegated access tokens from the IDE; it does not start a device-code flow or ask the user to sign in again. The IDE must obtain an access token for this API using the user's existing Entra session. Silent SSO depends on the IDE's Entra account and OAuth client configuration; the server cannot guarantee that a particular IDE will never display its own consent or account-selection prompt.
+
+1. In the Entra app registration for this MCP API, expose a delegated scope named `access_as_user` (or configure `ENTRA_API_SCOPE` to the scope name you expose). Use the app registration's client ID as `ENTRA_CLIENT_ID`; configure the access-token version to v2.
+2. Grant the VS Code and IntelliJ OAuth clients permission to that delegated scope and grant admin consent if required by your tenant. Configure their authorization server as `https://login.microsoftonline.com/<tenant-id>/v2.0` and request `api://<ENTRA_CLIENT_ID>/access_as_user`.
+3. Set `ENTRA_AUTH_ENABLED=true`, `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, and `MCP_PUBLIC_URL` on the server. Keep TLS enabled at the server or trusted reverse proxy.
+4. Start the remote endpoint with `npm run start:remote`. The endpoint serves Streamable HTTP at `MCP_PUBLIC_URL` and OAuth protected-resource metadata at `/.well-known/oauth-protected-resource`.
+5. Configure each IDE's remote MCP client to use the `MCP_PUBLIC_URL` endpoint and the Entra OAuth authorization-code flow with PKCE. The IDE sends the resulting access token as a bearer token; each request is validated, and an MCP session cannot be reused by a different Entra user.
+
+Example server configuration:
+
+```env
+ENTRA_AUTH_ENABLED=true
+ENTRA_TENANT_ID=your-tenant-id
+ENTRA_CLIENT_ID=your-mcp-api-app-id
+ENTRA_APP_ID_URI=api://your-mcp-api-app-id
+ENTRA_API_SCOPE=access_as_user
+MCP_PUBLIC_URL=https://mcp.example.com/mcp
+MCP_HOST=0.0.0.0
+MCP_PORT=3000
+```
+
+The existing `npm start` and module-specific `npm run start:*` commands continue to use stdio for local integrations.
 
 ## API Tools
 

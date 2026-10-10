@@ -8,7 +8,7 @@ This is a Model Context Protocol (MCP) server that allows AI assistants like Git
 
 ## Prerequisites
 
-- Node.js 18 or higher
+- Node.js 22 or higher
 - A Figma account with API access if you want Figma tools
 - A Figma personal access token if you want Figma tools
 - A Jira account and API token if you want Jira tools
@@ -67,6 +67,53 @@ MONGODB_DATABASE=common_mcp
 MONGODB_COLLECTION=vectors
 MONGODB_VECTOR_INDEX=vector_index
 ```
+
+To require Azure Entra ID authentication for the developer using the MCP server, also add:
+
+```env
+ENTRA_AUTH_ENABLED=true
+# Preferred: inject a native Entra JWT from the host or client process.
+ENTRA_ACCESS_TOKEN=eyJ...
+
+# Optional fallback configuration for interactive device-code login.
+ENTRA_TENANT_ID=your-entra-tenant-id
+ENTRA_CLIENT_ID=your-public-client-app-id
+# Optional (default is https://graph.microsoft.com/User.Read)
+ENTRA_SCOPES=https://graph.microsoft.com/User.Read
+# Optional allow-list
+ENTRA_ALLOWED_USER_EMAILS=developer@yourcompany.com
+# Optional allowed audiences
+ENTRA_ALLOWED_TOKEN_AUDIENCES=api://your-app-id,00000003-0000-0000-c000-000000000000
+```
+
+The auth order is:
+
+1. If `ENTRA_ACCESS_TOKEN`, `AZURE_ACCESS_TOKEN`, or `ENTRA_ID_TOKEN` is present, the server validates that token and uses it directly.
+2. If no native token env var is present, the server falls back to Azure Entra device-code flow using `ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID`.
+
+## Remote MCP with Entra SSO
+
+For VS Code or IntelliJ connecting to a remotely hosted server, configure the Entra app registration as a protected API. Expose a delegated `access_as_user` scope, use the app's client ID as `ENTRA_CLIENT_ID`, set the app to issue v2 access tokens, and grant the IDE's OAuth client permission to the scope. The IDE requests `api://<ENTRA_CLIENT_ID>/access_as_user` from `https://login.microsoftonline.com/<tenant-id>/v2.0` using authorization code with PKCE. The IDE uses its existing Entra account session; any silent sign-in behavior is controlled by the IDE and tenant policy.
+
+Set these server variables and start the remote endpoint:
+
+```env
+ENTRA_AUTH_ENABLED=true
+ENTRA_TENANT_ID=your-entra-tenant-id
+ENTRA_CLIENT_ID=your-mcp-api-app-id
+ENTRA_APP_ID_URI=api://your-mcp-api-app-id
+ENTRA_API_SCOPE=access_as_user
+MCP_PUBLIC_URL=https://mcp.example.com/mcp
+MCP_HOST=0.0.0.0
+MCP_PORT=3000
+```
+
+```bash
+npm run build
+npm run start:remote
+```
+
+The Streamable HTTP endpoint is `MCP_PUBLIC_URL`. OAuth protected-resource metadata is published at `https://mcp.example.com/.well-known/oauth-protected-resource` and identifies the tenant-specific Entra v2 authorization server. Remote requests must include an Entra bearer token for this API; the server validates its signature, issuer, audience, delegated scope, tenant, and optional user allow-list on every request. HTTPS is required outside localhost. Put the publicly reachable URL in the IDE's remote MCP configuration.
 
 ## Step 4: Build the Project
 
@@ -127,7 +174,14 @@ To use this MCP server with Github Copilot in VS Code, you'll need to configure 
         "MONGODB_URI": "mongodb+srv://username:password@cluster.mongodb.net/?retryWrites=true&w=majority",
         "MONGODB_DATABASE": "common_mcp",
         "MONGODB_COLLECTION": "vectors",
-        "MONGODB_VECTOR_INDEX": "vector_index"
+        "MONGODB_VECTOR_INDEX": "vector_index",
+        "ENTRA_AUTH_ENABLED": "true",
+        "ENTRA_ACCESS_TOKEN": "eyJ...",
+        "ENTRA_TENANT_ID": "your-entra-tenant-id",
+        "ENTRA_CLIENT_ID": "your-public-client-app-id",
+        "ENTRA_SCOPES": "https://graph.microsoft.com/User.Read",
+        "ENTRA_ALLOWED_USER_EMAILS": "developer@yourcompany.com",
+        "ENTRA_ALLOWED_TOKEN_AUDIENCES": "api://your-app-id"
       }
     },
     "figma": {
@@ -179,7 +233,7 @@ Alternatively, you can configure it through the Copilot Chat interface:
   - Name: `common`
   - Command: `node`
   - Arguments: `${workspaceFolder}/dist/server.js`
-  - Environment: `FIGMA_API_TOKEN=your_token_here`, plus Jira env vars if you want Jira tools
+  - Environment: `FIGMA_API_TOKEN=your_token_here`, plus Jira env vars if you want Jira tools, plus `ENTRA_AUTH_ENABLED=true` and either `ENTRA_ACCESS_TOKEN=...` or the device-code fallback vars `ENTRA_TENANT_ID=...` and `ENTRA_CLIENT_ID=...`
   - Name: `figma`
   - Command: `node`
   - Arguments: `${workspaceFolder}/dist/figma/server.js`
@@ -198,6 +252,16 @@ Alternatively, you can configure it through the Copilot Chat interface:
   - Environment: `MONGODB_URI=...`, `MONGODB_DATABASE=...`, `MONGODB_COLLECTION=...`, `MONGODB_VECTOR_INDEX=...`
 
 ## Available Tools
+
+## Azure Entra ID Authentication Flow
+
+When `ENTRA_AUTH_ENABLED=true`, the MCP server checks for a native Entra token first before allowing tool list/call requests.
+
+1. Start the MCP server from VS Code or terminal.
+2. If `ENTRA_ACCESS_TOKEN`, `AZURE_ACCESS_TOKEN`, or `ENTRA_ID_TOKEN` is set, the server validates that token and grants MCP access.
+3. If no native token env var is set, follow the device-code prompt printed by the server.
+4. Complete sign-in in the browser.
+5. MCP tool access is granted only after token validation or sign-in succeeds.
 
 Once configured, the MCP server provides these tools in Github Copilot Chat:
 
