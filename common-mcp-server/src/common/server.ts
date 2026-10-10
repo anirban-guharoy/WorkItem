@@ -5,6 +5,7 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { runWithEntraAssertion } from "./request-context.js";
 import {
   createDeveloperAuthenticatorFromEnv,
   createEntraRemoteAuthConfigFromEnv,
@@ -192,7 +193,7 @@ export async function startRemoteServer(createServer: () => Server, label: strin
         return;
       }
 
-      await handleRemoteRequest(session.transport, request, response);
+      await handleRemoteRequest(session.transport, request, response, bearerToken);
       return;
     }
 
@@ -212,7 +213,7 @@ export async function startRemoteServer(createServer: () => Server, label: strin
 
     try {
       await mcpServer.connect(transport);
-      await transport.handleRequest(request, response);
+      await handleRemoteRequest(transport, request, response, bearerToken);
       if (transport.sessionId) {
         sessions.set(transport.sessionId, { server: mcpServer, transport, identity });
       }
@@ -238,10 +239,11 @@ export async function startRemoteServer(createServer: () => Server, label: strin
 async function handleRemoteRequest(
   transport: StreamableHTTPServerTransport,
   request: IncomingMessage,
-  response: ServerResponse
+  response: ServerResponse,
+  userAssertion: string
 ): Promise<void> {
   try {
-    await transport.handleRequest(request, response);
+    await runWithEntraAssertion(userAssertion, () => transport.handleRequest(request, response));
   } catch (error) {
     console.error("Remote MCP session request failed:", error);
     if (!response.headersSent) {

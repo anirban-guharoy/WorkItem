@@ -1,10 +1,10 @@
 # Common MCP Server - Quick Setup Guide
 
-**Note:** This workspace now exposes modular Node.js/TypeScript MCP servers for `figma`, `jira`, `confluence`, `mongodb`, and a shared combined server.
+**Note:** This workspace exposes modular Node.js/TypeScript MCP servers for `figma`, `jira`, `confluence`, `mongodb`, and remote SharePoint context search, plus a shared combined server.
 
 ## What is this?
 
-This is a Model Context Protocol (MCP) server that allows AI assistants like GitHub Copilot to interact with Figma, Jira, Confluence, and MongoDB vector storage programmatically. It provides tools to fetch design data from Figma, issues from Jira, pages from Confluence, and vector documents from MongoDB.
+This is a Model Context Protocol (MCP) server that allows AI assistants like GitHub Copilot to interact with Figma, Jira, Confluence, SharePoint, and MongoDB vector storage programmatically. It provides tools to fetch design data from Figma, issues from Jira, pages from Confluence, SharePoint search results, and vector documents from MongoDB.
 
 ## Prerequisites
 
@@ -14,6 +14,7 @@ This is a Model Context Protocol (MCP) server that allows AI assistants like Git
 - A Jira account and API token if you want Jira tools
 - A Confluence account and API token if you want Confluence tools
 - A MongoDB deployment with vector search support if you want MongoDB vector tools
+- Microsoft 365 tenant and Entra app registration if you want remote SharePoint search
 - VS Code with Github Copilot Chat extension
 
 ## Step 1: Get Your Figma API Token
@@ -95,12 +96,15 @@ The auth order is:
 
 For VS Code or IntelliJ connecting to a remotely hosted server, configure the Entra app registration as a protected API. Expose a delegated `access_as_user` scope, use the app's client ID as `ENTRA_CLIENT_ID`, set the app to issue v2 access tokens, and grant the IDE's OAuth client permission to the scope. The IDE requests `api://<ENTRA_CLIENT_ID>/access_as_user` from `https://login.microsoftonline.com/<tenant-id>/v2.0` using authorization code with PKCE. The IDE uses its existing Entra account session; any silent sign-in behavior is controlled by the IDE and tenant policy.
 
+For SharePoint context search, add the Microsoft Graph **delegated** `Files.Read.All` permission to this same API app registration and grant consent. Create a client secret (or use a secret manager to inject it) for the confidential OBO exchange. The remote server exchanges the IDE's API token for a Graph token on behalf of that same user; Graph search results remain subject to that user's SharePoint permissions. Keep the client secret on the server only; never put it in IDE/client configuration. SharePoint search is remote-only because local stdio requests do not carry the per-request user assertion required for OBO.
+
 Set these server variables and start the remote endpoint:
 
 ```env
 ENTRA_AUTH_ENABLED=true
 ENTRA_TENANT_ID=your-entra-tenant-id
 ENTRA_CLIENT_ID=your-mcp-api-app-id
+ENTRA_CLIENT_SECRET=store-this-in-a-secret-manager
 ENTRA_APP_ID_URI=api://your-mcp-api-app-id
 ENTRA_API_SCOPE=access_as_user
 MCP_PUBLIC_URL=https://mcp.example.com/mcp
@@ -113,7 +117,7 @@ npm run build
 npm run start:remote
 ```
 
-The Streamable HTTP endpoint is `MCP_PUBLIC_URL`. OAuth protected-resource metadata is published at `https://mcp.example.com/.well-known/oauth-protected-resource` and identifies the tenant-specific Entra v2 authorization server. Remote requests must include an Entra bearer token for this API; the server validates its signature, issuer, audience, delegated scope, tenant, and optional user allow-list on every request. HTTPS is required outside localhost. Put the publicly reachable URL in the IDE's remote MCP configuration.
+The Streamable HTTP endpoint is `MCP_PUBLIC_URL`. OAuth protected-resource metadata is published at `https://mcp.example.com/.well-known/oauth-protected-resource` and identifies the tenant-specific Entra v2 authorization server. Remote requests must include an Entra bearer token for this API; the server validates its signature, issuer, audience, delegated scope, tenant, and optional user allow-list on every request. SharePoint search exchanges that request's token using OBO and calls Microsoft Graph with delegated `Files.Read.All`. HTTPS is required outside localhost. Put the publicly reachable URL in the IDE's remote MCP configuration.
 
 ## Step 4: Build the Project
 
@@ -145,6 +149,7 @@ npm run start:figma
 npm run start:jira
 npm run start:confluence
 npm run start:mongodb
+npm run start:remote
 ```
 
 ## Using with Github Copilot
@@ -389,6 +394,15 @@ Deletes a stored MongoDB vector document by id.
 **Arguments:**
   - `document_id`: Vector document id
 
+### 18. `sharepoint_search`
+Searches SharePoint and OneDrive content available to the signed-in user.
+
+**Arguments:**
+  - `query`: Text or keywords to search
+  - `limit` (optional): Maximum number of results (1-50, defaults to 10)
+
+Available on the authenticated remote MCP server. Requires delegated Microsoft Graph `Files.Read.All` consent and server-side `ENTRA_CLIENT_SECRET` for OBO.
+
 ## Troubleshooting
 
 ### "FIGMA_API_TOKEN is not set"
@@ -442,6 +456,7 @@ npm run dev
 │   ├── figma/             # Figma module and Figma-only server entrypoint
 │   ├── jira/              # Jira module and Jira-only server entrypoint
 │   ├── mongodb/           # MongoDB vector module and MongoDB-only server entrypoint
+│   ├── sharepoint/        # Remote-only SharePoint search via Microsoft Graph OBO
 │   └── server.ts          # Combined server entrypoint
 ├── dist/                  # Compiled JavaScript output
 ├── package.json           # Project dependencies

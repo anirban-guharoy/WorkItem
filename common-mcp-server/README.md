@@ -1,6 +1,6 @@
 # common-mcp-server
 
-`common-mcp-server` is a Model Context Protocol (MCP) server organized around four modules, `figma`, `jira`, `confluence`, and `mongodb`. You can run them together through the shared server or independently through dedicated entrypoints.
+`common-mcp-server` is a Model Context Protocol (MCP) server organized around modules for `figma`, `jira`, `confluence`, `mongodb`, and remote SharePoint context search. You can run the first four through the shared stdio server or independently; SharePoint runs on the authenticated remote server.
 
 ## Prerequisites
 
@@ -10,6 +10,7 @@
 - Jira account with API token access if Jira tools are needed
 - Confluence account with API token access if Confluence tools are needed
 - MongoDB deployment with vector search support if MongoDB vector tools are needed
+- Microsoft 365 tenant with SharePoint access if remote SharePoint search is needed
 - VS Code with Github Copilot Chat extension
 
 ## Installation
@@ -66,6 +67,7 @@ For full documentation, see SETUP.md.
 | `ENTRA_ID_TOKEN` | Alternate native Entra JWT environment variable | Optional |
 | `ENTRA_TENANT_ID` | Expected Azure Entra tenant ID and device-code fallback tenant | Optional, but recommended when `ENTRA_AUTH_ENABLED=true` |
 | `ENTRA_CLIENT_ID` | Public client application (App registration) ID for device-code fallback | Required only when no native token env var is supplied |
+| `ENTRA_CLIENT_SECRET` | Confidential credential for the remote MCP API's Graph On-Behalf-Of token exchange | Required for SharePoint search |
 | `ENTRA_SCOPES` | Optional comma-separated OAuth scopes for device-code fallback | Optional (defaults to `https://graph.microsoft.com/User.Read`) |
 | `ENTRA_ALLOWED_USER_EMAILS` | Optional comma-separated allow-list of developer UPN/email values | Optional |
 | `ENTRA_ALLOWED_TOKEN_AUDIENCES` | Optional comma-separated allow-list of Entra token audiences (`aud`) | Optional |
@@ -259,6 +261,17 @@ Arguments:
   - version_number: Optional next Confluence version number; if omitted, the current version is fetched automatically
 ```
 
+### sharepoint_search
+Search SharePoint and OneDrive content accessible to the signed-in user. Available on the authenticated remote MCP server; it uses Entra On-Behalf-Of authentication and Microsoft Graph delegated permissions.
+
+**Usage:**
+```
+Tool: sharepoint_search
+Arguments:
+  - query: Text or keywords to search in accessible content
+  - limit: Maximum results to return (optional, defaults to 10; maximum 50)
+```
+
 ### mongodb_vector_upsert
 Upsert a vector document into MongoDB.
 
@@ -311,6 +324,7 @@ Arguments:
 
 - `npm start`: Run the shared server with Figma, Jira, Confluence, and MongoDB modules.
 - `npm run start:mongodb`: Run only the MongoDB vector module.
+- `npm run start:remote`: Run the authenticated remote server, including SharePoint context search.
 - `npm run start:confluence`: Run only the Confluence module.
 - `npm run start:figma`: Run only the Figma module.
 - `npm run start:jira`: Run only the Jira module.
@@ -402,7 +416,8 @@ To add new tools or features:
 - **Jira module**: `src/jira/` contains the Jira client, tools, and Jira-only entrypoint, while `jira/` contains standalone Jira utilities.
 - **Confluence module**: `src/confluence/` contains the Confluence client, tools, and Confluence-only entrypoint, while `confluence/` contains standalone Confluence utilities.
 - **MongoDB module**: `src/mongodb/` contains the MongoDB vector client, tools, and MongoDB-only entrypoint.
-- **Combined server**: `src/server.ts` composes all four modules into the shared server.
+- **SharePoint module**: `src/sharepoint/` searches SharePoint and OneDrive with Microsoft Graph using the authenticated user's delegated permissions. It is registered on the remote server only.
+- **Combined server**: `src/server.ts` composes the Figma, Jira, Confluence, and MongoDB modules into the local stdio server; `src/remote-server.ts` also registers SharePoint.
 
 ## Resources
 
