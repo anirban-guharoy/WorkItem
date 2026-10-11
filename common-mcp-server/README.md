@@ -1,6 +1,6 @@
 # common-mcp-server
 
-`common-mcp-server` is a Model Context Protocol (MCP) server organized around modules for `figma`, `jira`, `confluence`, SharePoint context search, and the Backstage software catalog. IDE users connect to the authenticated remote server and sign in individually with Entra ID. Figma, Jira, and Confluence calls use server-side service-account credentials; SharePoint uses the signed-in user's delegated Entra identity through On-Behalf-Of (OBO); Backstage calls use the MCP host's Entra application identity.
+`common-mcp-server` is a Model Context Protocol (MCP) server organized around modules for `figma`, `jira`, `confluence`, `xray`, SharePoint context search, and the Backstage software catalog. IDE users connect to the authenticated remote server and sign in individually with Entra ID. Figma, Jira, Confluence, and Xray calls use server-side service-account credentials; SharePoint uses the signed-in user's delegated Entra identity through On-Behalf-Of (OBO); Backstage calls use the MCP host's Entra application identity.
 
 ## Prerequisites
 
@@ -9,6 +9,7 @@
 - Figma service account with API token access
 - Jira service account with API token access if Jira tools are needed
 - Confluence service account with API token access if Confluence tools are needed
+- Xray Cloud API key (client ID and secret) if Xray tools are needed
 - Microsoft 365 tenant with SharePoint access if remote SharePoint search is needed
 - Remote Backstage Catalog API protected by Entra ID if Backstage tools are needed
 - VS Code with Github Copilot Chat extension
@@ -52,6 +53,9 @@ For full documentation, see SETUP.md.
 | `CONFLUENCE_BASE_URL` | Your Confluence site or wiki base URL | Required for Confluence tools |
 | `CONFLUENCE_EMAIL` | Confluence service-account email | Required for Confluence tools |
 | `CONFLUENCE_API_TOKEN` | Server-side Confluence service-account API token | Required for Confluence tools |
+| `XRAY_CLIENT_ID` | Xray Cloud API key client ID | Required for Xray tools |
+| `XRAY_CLIENT_SECRET` | Server-side Xray Cloud API key client secret | Required for Xray tools |
+| `XRAY_BASE_URL` | Xray Cloud host; defaults to `https://xray.cloud.getxray.app` (regional: `us.`, `eu.`, `au.` prefixes) | Optional |
 | `BACKSTAGE_BASE_URL` | Base URL of the remote Backstage instance | Required for Backstage tools |
 | `BACKSTAGE_API_SCOPE` | Entra application scope for the Backstage API (for example `api://<app-id>/.default`) | Required for Backstage tools |
 | `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_CLIENT_SECRET` | Standard Azure Identity credentials for local development, or `AZURE_CLIENT_ID` to select a user-assigned managed identity | Optional |
@@ -71,7 +75,7 @@ For full documentation, see SETUP.md.
 
 In remote mode, the IDE authenticates each user with Entra ID and sends that user's access token to the MCP endpoint. The server validates the token signature, issuer, audience, tenant, delegated API scope, expiry, and optional user allow-list on every request. Each MCP session is bound to its creating Entra user; a different user cannot reuse it. The IDE's OAuth client must be permitted to request the exposed API scope.
 
-The Jira, Confluence, and Figma credentials are service-account credentials configured only on the server. They are shared by authenticated MCP users, so grant those service accounts only the permissions required for the tools. Never put the service-account credentials or `ENTRA_CLIENT_SECRET` in IDE configuration.
+The Jira, Confluence, Xray, and Figma credentials are service-account credentials configured only on the server. They are shared by authenticated MCP users, so grant those service accounts only the permissions required for the tools. Never put the service-account credentials or `ENTRA_CLIENT_SECRET` in IDE configuration.
 
 ### Backstage app authentication
 
@@ -85,7 +89,7 @@ Remote mode accepts Entra delegated access tokens from the IDE; it does not star
 
 1. Register the MCP API in Entra ID and expose a delegated scope named `access_as_user` (or configure `ENTRA_API_SCOPE` to the scope name you expose). Use the app registration's client ID as `ENTRA_CLIENT_ID`; configure the access-token version to v2.
 2. Grant the VS Code and IntelliJ OAuth clients permission to that delegated scope and grant admin consent if required by your tenant. Configure their authorization server as `https://login.microsoftonline.com/<tenant-id>/v2.0` and request `api://<ENTRA_CLIENT_ID>/access_as_user`.
-3. Set `ENTRA_AUTH_ENABLED=true`, `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, and `MCP_PUBLIC_URL` on the server. Configure Jira, Confluence, and Figma service-account credentials on the server as needed. Keep TLS enabled at the server or trusted reverse proxy.
+3. Set `ENTRA_AUTH_ENABLED=true`, `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, and `MCP_PUBLIC_URL` on the server. Configure Jira, Confluence, Xray, and Figma service-account credentials on the server as needed. Keep TLS enabled at the server or trusted reverse proxy.
 4. Start the remote endpoint with `npm run start:remote`. The endpoint serves Streamable HTTP at `MCP_PUBLIC_URL` and OAuth protected-resource metadata at `/.well-known/oauth-protected-resource`.
 5. Configure each IDE's remote MCP client to use the `MCP_PUBLIC_URL` endpoint and the Entra OAuth authorization-code flow with PKCE. The IDE sends the resulting access token as a bearer token; each request is validated, and an MCP session cannot be reused by a different Entra user.
 
@@ -203,6 +207,32 @@ Tool: jira_get_issue
 Arguments:
   - issue_key: The Jira issue key (e.g., PROJ-1)
 ```
+
+### search-test-cases
+Find existing Xray test cases similar to given acceptance criteria. Keywords are extracted from the criteria and used in a JQL text search over Test issues in the project; candidates are then ranked by term overlap with the criteria. Returns each match's key, summary, test type, labels, and a `similarity` score (0-1). The search is keyword-based, not semantic.
+
+**Usage:**
+```
+Tool: search-test-cases
+Arguments:
+  - project_key: Jira project key to search in
+  - acceptance_criteria: Acceptance criteria text
+  - max_results: Maximum tests to return, 1-50 (optional, default 10)
+```
+
+### create-test-cases
+Create test cases in Xray and add them to a test plan (test schedule). Tests default to type `Manual`, or `Cucumber` when `gherkin` is provided. A test that fails to create is reported under `failed` without stopping the others; the response also lists `created` tests and those `addedToPlan`.
+
+**Usage:**
+```
+Tool: create-test-cases
+Arguments:
+  - test_plan_key: Test plan issue key (e.g., PROJ-123)
+  - project_key: Project for the new tests (optional, defaults to the test plan's project)
+  - test_cases: Array of { summary, description?, test_type? (Manual|Cucumber|Generic), steps?: [{action, data?, result?}], gherkin?, labels? }
+```
+
+Xray tools use Xray Cloud API keys configured server-side (`XRAY_CLIENT_ID`, `XRAY_CLIENT_SECRET`, optional `XRAY_BASE_URL`) and call the Xray Cloud GraphQL API. Xray Server/Data Center is not supported.
 
 ### confluence_search_pages
 Search Confluence pages by query text.
@@ -341,6 +371,9 @@ Standalone Confluence utilities are grouped under `confluence/`:
 | `CONFLUENCE_BASE_URL` | Your Confluence site or wiki base URL | Required for Confluence tools |
 | `CONFLUENCE_EMAIL` | Confluence service-account email | Required for Confluence tools |
 | `CONFLUENCE_API_TOKEN` | Server-side Confluence service-account API token | Required for Confluence tools |
+| `XRAY_CLIENT_ID` | Xray Cloud API key client ID | Required for Xray tools |
+| `XRAY_CLIENT_SECRET` | Server-side Xray Cloud API key client secret | Required for Xray tools |
+| `XRAY_BASE_URL` | Xray Cloud host (defaults to `https://xray.cloud.getxray.app`) | Optional |
 
 ## Troubleshooting
 
@@ -371,6 +404,7 @@ To add new tools or features:
 - **Figma module**: `src/figma/` contains the Figma client, tools, and Figma-only entrypoint, while `figma/` contains standalone Figma utilities.
 - **Jira module**: `src/jira/` contains the Jira client, tools, and Jira-only entrypoint, while `jira/` contains standalone Jira utilities.
 - **Confluence module**: `src/confluence/` contains the Confluence client, tools, and Confluence-only entrypoint, while `confluence/` contains standalone Confluence utilities.
+- **Xray module**: `src/xray/` contains the Xray Cloud GraphQL client and the `search-test-cases` / `create-test-cases` tools. It is registered on the remote server only.
 - **SharePoint module**: `src/sharepoint/` searches SharePoint and OneDrive with Microsoft Graph using the authenticated user's delegated permissions. It is registered on the remote server only.
 - **Backstage module**: `src/backstage/` searches the remote catalog and retrieves entities using the MCP host's Entra application identity.
 - **Remote server**: `src/remote-server.ts` composes the integration modules behind per-request Entra authentication.

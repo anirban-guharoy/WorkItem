@@ -4,6 +4,7 @@ import { createFigmaModule } from "./figma/module.js";
 import { createJiraModule } from "./jira/module.js";
 import { createSharePointModule } from "./sharepoint/module.js";
 import { createBackstageModule } from "./backstage/module.js";
+import { createXrayModule } from "./xray/module.js";
 
 loadEnvironment();
 
@@ -17,6 +18,7 @@ const createServer = () =>
       createConfluenceModule(),
       createSharePointModule(),
       createBackstageModule(),
+      createXrayModule(),
     ],
   });
 
