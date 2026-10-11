@@ -3,6 +3,9 @@ import { requireServiceEnv } from "../common/config.js";
 import { failure, success, type ToolResult } from "../common/mcp.js";
 import { JiraClient } from "./jira-client.js";
 
+const DEFAULT_MAX_RESULTS = 50;
+const MAX_RESULTS_LIMIT = 100;
+
 const jiraTools: Tool[] = [
 	{
 		name: "jira_get_issues",
@@ -16,8 +19,8 @@ const jiraTools: Tool[] = [
 				},
 				max_results: {
 					type: "number",
-					description: "Maximum number of issues to return",
-					default: 50,
+					description: `Maximum number of issues to return (1-${MAX_RESULTS_LIMIT})`,
+					default: DEFAULT_MAX_RESULTS,
 				},
 			},
 			required: ["project_key"],
@@ -82,9 +85,17 @@ export async function handleJiraTool(toolName: string, args: unknown): Promise<T
 		switch (toolName) {
 			case "jira_get_issues": {
 				const projectKey = argsObj.project_key as string | undefined;
-				const maxResults = (argsObj.max_results as number | undefined) || 50;
+				const maxResults = argsObj.max_results === undefined ? DEFAULT_MAX_RESULTS : argsObj.max_results;
 				if (!projectKey) {
 					return failure("Error: project_key is required");
+				}
+				if (
+					typeof maxResults !== "number" ||
+					!Number.isInteger(maxResults) ||
+					maxResults < 1 ||
+					maxResults > MAX_RESULTS_LIMIT
+				) {
+					return failure(`Error: max_results must be an integer between 1 and ${MAX_RESULTS_LIMIT}`);
 				}
 
 				return success(await client.getIssues(projectKey, maxResults));

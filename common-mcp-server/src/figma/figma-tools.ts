@@ -441,30 +441,16 @@ export async function handleFigmaTool(toolName: string, args: unknown): Promise<
 					return failure("Error: file_key parameter is required");
 				}
 
-				let styles: Record<string, any> = {};
-				let variables: Record<string, any> = {};
-
-				try {
-					const stylesData = (await client.getStyles(fileKey)) as {
-						meta?: { styles?: Record<string, any> };
-					};
-					styles = stylesData.meta?.styles || {};
-				} catch {
-					styles = {};
-				}
-
-				try {
-					const variablesData = (await client.getVariables(fileKey)) as {
-						meta?: { variables?: Record<string, any> };
-					};
-					variables = variablesData.meta?.variables || {};
-				} catch {
-					variables = {};
-				}
+				const stylesData = (await client.getStyles(fileKey)) as {
+					meta?: { styles?: Record<string, any> };
+				};
+				const variablesData = (await client.getVariables(fileKey)) as {
+					meta?: { variables?: Record<string, any> };
+				};
 
 				return success({
-					styles: formatStyles(styles),
-					variables: formatVariables(variables),
+					styles: formatStyles(stylesData.meta?.styles || {}),
+					variables: formatVariables(variablesData.meta?.variables || {}),
 				});
 			}
 			case "figma_map_tokens_to_angular": {

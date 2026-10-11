@@ -22,7 +22,11 @@ type RemoteSession = {
   server: Server;
   transport: StreamableHTTPServerTransport;
   identity: DeveloperIdentity;
+  idleTimeout?: ReturnType<typeof setTimeout>;
 };
+
+const MAX_REMOTE_SESSIONS = 1000;
+const REMOTE_SESSION_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 
 export function loadEnvironment(): void {
   dotenv.config();
@@ -106,6 +110,7 @@ export async function startRemoteServer(createServer: () => Server, label: strin
   ]);
   const allowedOrigins = parseCsvEnv(process.env.MCP_ALLOWED_ORIGINS);
   const sessions = new Map<string, RemoteSession>();
+  let pendingSessionInitializations = 0;
 
   const httpServer = createHttpServer(async (request, response) => {
     setCorsHeaders(request, response, allowedOrigins);
@@ -173,6 +178,7 @@ export async function startRemoteServer(createServer: () => Server, label: strin
         return;
       }
 
+      scheduleSessionExpiry(sessionId, session, sessions);
       await handleRemoteRequest(session.transport, request, response, bearerToken);
       return;
     }
@@ -182,10 +188,20 @@ export async function startRemoteServer(createServer: () => Server, label: strin
       return;
     }
 
+    if (sessions.size + pendingSessionInitializations >= MAX_REMOTE_SESSIONS) {
+      sendJson(response, 503, { error: "session_capacity_reached" });
+      return;
+    }
+
     const mcpServer = createServer();
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: () => randomUUID() });
+    pendingSessionInitializations++;
     transport.onclose = () => {
       if (transport.sessionId) {
+        const session = sessions.get(transport.sessionId);
+        if (session?.idleTimeout) {
+          clearTimeout(session.idleTimeout);
+        }
         sessions.delete(transport.sessionId);
       }
       void mcpServer.close();
@@ -195,7 +211,9 @@ export async function startRemoteServer(createServer: () => Server, label: strin
       await mcpServer.connect(transport);
       await handleRemoteRequest(transport, request, response, bearerToken);
       if (transport.sessionId) {
-        sessions.set(transport.sessionId, { server: mcpServer, transport, identity });
+        const session = { server: mcpServer, transport, identity };
+        sessions.set(transport.sessionId, session);
+        scheduleSessionExpiry(transport.sessionId, session, sessions);
       }
     } catch (error) {
       console.error("Remote MCP request failed:", error);
@@ -204,6 +222,8 @@ export async function startRemoteServer(createServer: () => Server, label: strin
       }
       await transport.close();
       await mcpServer.close();
+    } finally {
+      pendingSessionInitializations--;
     }
   });
 
@@ -214,6 +234,27 @@ export async function startRemoteServer(createServer: () => Server, label: strin
     httpServer.listen(port, host, resolve);
   });
   console.error(`${label} listening at ${publicUrl.toString()}`);
+}
+
+function scheduleSessionExpiry(
+  sessionId: string,
+  session: RemoteSession,
+  sessions: Map<string, RemoteSession>
+): void {
+  if (session.idleTimeout) {
+    clearTimeout(session.idleTimeout);
+  }
+
+  session.idleTimeout = setTimeout(() => {
+    if (sessions.get(sessionId) !== session) {
+      return;
+    }
+    sessions.delete(sessionId);
+    void session.transport.close().catch((error: unknown) => {
+      console.error(`Failed to close expired MCP session ${sessionId}:`, error);
+    });
+  }, REMOTE_SESSION_IDLE_TIMEOUT_MS);
+  session.idleTimeout.unref();
 }
 
 async function handleRemoteRequest(
